@@ -6,8 +6,18 @@ Everything lives on your phone. No accounts, no server, no tracking.
 
 ## Features
 
-- **Quick-tap activity log** — one tap to log a workout, deep-work block, 1:1, family dinner (or a setback like doomscrolling), with quality rating (1–5), duration and notes. Fully customizable activity list.
-- **Day score (0–100)** — transparent formula rewarding pillar coverage, quality and balance, penalising negative habits.
+- **Dashboard** — today's High Performance Score with per-component breakdown, current streak, last-7-days trend, weekly average, and at-a-glance tiles (weight, body fat %, sleep, training, calories, protein, alcohol, mood).
+- **Daily check-in** across six sections:
+  - **Physical** — weight, body fat, sleep, energy, mood, alcohol units, water, steps, supplements tick-boxes
+  - **Nutrition** — meals (free text), calories, protein, fruit & veg portions, sugar cravings, hunger
+  - **Training** — sessions (bike / run / swim / gym / recovery) with duration, calories, RPE and notes (Garmin import placeholder)
+  - **Family** — present today, quality-time minutes, phone-free evening, played with children, date night, journal
+  - **Career** — hours worked, biggest win, deep-work minutes, leadership action, AI learning, strategic-vs-operational %
+  - **Mind** — gratitude, biggest stress, meditation, reading, screen time, overall mood
+- **High Performance Score (/100)** — computed automatically from the check-in with **configurable weights** (default: Sleep 15, Training 20, Nutrition 20, Alcohol 10, Family 15, Career 15, Reflection 5) and configurable targets (sleep hours, protein, deep work, etc.). Any weight total works — the score normalises to /100.
+- **Weekly review** — every Sunday (or whenever): wins, lessons, biggest mistake, biggest success, next week's goals, week score /10.
+- **Analytics** — trend charts for HPS, weight, body fat, sleep, mood, alcohol and weekly training volume, plus a GitHub-style consistency calendar. Tap any chart for exact values.
+- **Quick-tap activity log** — one-tap extras (1:1 held, gave feedback, family dinner, doomscrolling…) with quality rating, duration and notes. Fully customizable list.
 - **Weekly goals & metrics** — set targets like "4 workouts", "15 h deep work", "2 date nights" (or caps like "max 3 takeaways"), log progress, see this week's bar and the last 4 weeks' trend.
 - **AI coaching, two ways:**
   1. **JSON export** — one tap copies/shares the day (activities, scores, goal progress, 7-day trend + a ready-made coaching prompt) to paste into Claude, ChatGPT or any LLM. Free.
