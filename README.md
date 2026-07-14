@@ -9,7 +9,7 @@ Everything lives on your phone. No accounts, no server, no tracking.
 - **Dashboard** — today's High Performance Score with per-component breakdown, current streak, last-7-days trend, weekly average, and at-a-glance tiles (weight, body fat %, sleep, training, calories, protein, alcohol, mood).
 - **Daily check-in** across six sections:
   - **Physical** — weight, body fat, sleep, energy, mood, alcohol units, water, steps, supplements tick-boxes
-  - **Nutrition** — meals split into Breakfast / Lunch / Dinner / Snacks (one-tap Huel & Salad quick-ticks). Every meal you submit — a 📷 photo, typed text, or a quick-tick — is estimated by Claude, and the day's **Calories and Protein totals auto-populate** from the sum (with a manual override you can reset back to auto). Also: fruit & veg portions, sugar cravings, hunger
+  - **Nutrition** — meals split into Breakfast / Lunch / Dinner / Snacks. The day's **Calories and Protein totals auto-populate** from your meals: one-tap Huel & Salad quick-ticks use built-in stock values (no API call), while 📷 photos and typed meals are estimated by Claude. Manual override with reset-to-auto. Also: fruit & veg portions, sugar cravings, hunger
   - **Training** — sessions (run / bike / swim / gym / recovery, defaulting to Run) with time, distance, calories, avg heart rate, RPE and notes; **Garmin file import** (TCX / GPX)
   - **Family** — present today, quality-time minutes, phone-free evening, played with children, date night, journal
   - **Career** — hours worked, biggest win, deep-work minutes, leadership action, AI learning, strategic-vs-operational %
@@ -36,13 +36,13 @@ Everything lives on your phone. No accounts, no server, no tracking.
 
 ## Meal calorie estimation
 
-Every meal you submit is estimated with the Claude API (using the key you set in Settings), and the day's Calories and Protein totals auto-sum from those estimates:
+Every meal you submit contributes to the day's Calories and Protein totals, which auto-sum from the per-meal estimates:
 
-- **📷 Photo** — tap the camera on a meal, snap or pick a plate, and Claude returns the dish name, calories and macros.
-- **✍️ Typed text** — type what you ate (e.g. "Chicken & rice bowl") and it's estimated on the spot.
-- **Quick-ticks** — ticking Huel or Salad estimates that regular meal automatically.
+- **Quick-ticks (offline, no API key)** — ticking Huel or Salad uses built-in stock values (Huel 400 kcal / 40 g protein; Salad 500 kcal / 25 g protein). No network call.
+- **📷 Photo** — tap the camera on a meal, snap or pick a plate, and Claude returns the dish name, calories and macros. Overrides the stock value for that meal.
+- **✍️ Typed text** — type what you ate (e.g. "Chicken & rice bowl") and Claude estimates it on the spot.
 
-The day's Calories/Protein fields show "✨ Auto-summed from your meals". Type into either field to override manually; a "use auto from meals" link resets it. Estimates are approximate — nothing is sent unless you submit a meal, and nothing is stored server-side.
+Priority per meal is typed text > photo > quick-tick stock. The day's Calories/Protein fields show "✨ Auto-summed from your meals"; type into either field to override manually, with a "use auto from meals" link to reset. Photo and typed-text estimation use your Claude API key (set in Settings); the Huel/Salad quick-ticks work with no key at all. Nothing is sent unless you submit a meal, and nothing is stored server-side.
 
 ## Garmin
 

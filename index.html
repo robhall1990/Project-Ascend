@@ -772,19 +772,18 @@ const CHECKIN_SCHEMA = [
 
 const MEAL_KEYS = ["breakfast","lunch","dinner","snacks"];
 const mealEstimating = new Set();   // "date:mealKey" while an estimate is in flight
+/* stock nutrition for the one-tap regular meals — no API call needed */
+const QUICK_STOCK = {
+  breakfastHuel: {mealKey:"breakfast", est:{description:"Huel", calories:400, protein_g:40, carbs_g:17, fat_g:17}},
+  lunchSalad:    {mealKey:"lunch",     est:{description:"Salad", calories:500, protein_g:25, carbs_g:30, fat_g:30}}
+};
+function quickKeyFor(mealKey){ return mealKey==="breakfast" ? "breakfastHuel" : mealKey==="lunch" ? "lunchSalad" : null; }
 function recomputeNutrition(c){
   const est = c.nutrition.est||{}, keys = Object.keys(est);
   if(!c.nutrition.caloriesManual)
     c.nutrition.calories = keys.length ? Math.round(keys.reduce((s,k)=>s+(+est[k].calories||0),0)) : null;
   if(!c.nutrition.proteinManual)
     c.nutrition.protein = keys.length ? Math.round(keys.reduce((s,k)=>s+(+est[k].protein_g||0),0)) : null;
-}
-function effectiveMealText(c, mealKey){
-  const t = (c.nutrition[mealKey]||"").trim();
-  if(t) return t;
-  if(mealKey==="breakfast" && c.nutrition.breakfastHuel) return "Huel (meal replacement shake, standard serving)";
-  if(mealKey==="lunch" && c.nutrition.lunchSalad) return "Salad";
-  return "";
 }
 
 /* ============================ HPS ============================ */
@@ -949,8 +948,8 @@ function fieldHTML(sect, f, val){
     let hint;
     if(manual && hasEst) hint = `Manual override · <button type="button" class="linkbtn" data-autoreset="${f.k}">use auto from meals</button>`;
     else if(hasEst) hint = "✨ Auto-summed from your meals";
-    else if(DB.settings.apiKey) hint = "Add or photograph meals — this fills in automatically";
-    else hint = "Add meals + an API key (Settings) to auto-estimate, or type it in";
+    else if(DB.settings.apiKey) hint = "Tick Huel/Salad, snap a photo, or type a meal — this fills in automatically";
+    else hint = "Tick Huel/Salad (no key needed), or add an API key to estimate photos & typed meals";
     return inline + `<div class="auto-hint">${hint}</div>`;
   }
   if(f.type==="text") return `<div class="frow"><label for="${id}">${f.label}</label>
@@ -981,7 +980,7 @@ function fieldHTML(sect, f, val){
         placeholder="${f.quick?"…or what did you have?":"What did you have?"}" value="${esc(val??"")}">
       ${mealEstimating.has(selectedDate+":"+f.k)
         ? `<div class="meal-est"><span class="spin"></span>Estimating calories…</div>`
-        : est?`<div class="meal-est">${est.source==="photo"?"📷":"≈"} ~${Math.round(est.calories)} kcal · ${Math.round(est.protein_g)} g protein${est.confidence?` · ${esc(est.confidence)} confidence`:""}</div>`:""}
+        : est?`<div class="meal-est">${est.source==="photo"?"📷":est.source==="stock"?"📋":"≈"} ~${Math.round(est.calories)} kcal · ${Math.round(est.protein_g)} g protein${est.source==="stock"?" · standard serving":est.confidence?` · ${esc(est.confidence)} confidence`:""}</div>`:""}
       </div>`;
   }
   if(f.type==="supps") return `<div class="frow"><label>${f.label}</label>
@@ -1218,26 +1217,41 @@ async function analyzeMealText(desc){
   const text = await claudeText([{role:"user", content:prompt}], 500);
   return parseMealJSON(text);
 }
-/* estimate a typed / quick-tick meal and auto-update day totals */
+/* decide a meal's estimate and auto-update day totals.
+   priority: typed free-text (Claude) > photo (set elsewhere) > quick-tick stock (local, no API) */
 async function submitMeal(mealKey){
   const c = ensureCheckin(selectedDate);
-  const desc = effectiveMealText(c, mealKey);
-  const est = c.nutrition.est || {};
-  if(!desc){                                   // meal cleared → drop its estimate
-    if(est[mealKey]){ delete est[mealKey]; recomputeNutrition(c); save(); if(activeView==="checkin") renderCheckin(); }
+  c.nutrition.est = c.nutrition.est || {};
+  const est = c.nutrition.est;
+  const typed = (c.nutrition[mealKey]||"").trim();
+  const quickKey = quickKeyFor(mealKey);
+  const quickOn = quickKey && !!c.nutrition[quickKey];
+  const applyStock = ()=>{ est[mealKey] = {...QUICK_STOCK[quickKey].est, source:"stock", sourceText:null}; };
+  const refresh = ()=>{ recomputeNutrition(c); save(); if(activeView==="checkin") renderCheckin(); };
+
+  if(!typed){                                    // no free text → use stock if ticked, else clear
+    if(quickOn) applyStock();
+    else if(est[mealKey]) delete est[mealKey];
+    else return;
+    refresh(); return;
+  }
+
+  // free text present → estimate it with Claude (skip if unchanged / already a matching photo)
+  const existing = est[mealKey];
+  if(existing && (existing.sourceText===typed || (existing.source==="photo" && existing.description===typed))) return;
+  const flag = selectedDate+":"+mealKey;
+  if(mealEstimating.has(flag)) return;            // an estimate for this meal is already in flight
+  if(!DB.settings.apiKey){                        // no key: fall back to stock if ticked, else leave text unpriced
+    if(quickOn && (!existing || existing.source==="stock")){ applyStock(); refresh(); }
     return;
   }
-  if(!DB.settings.apiKey) return;              // no key → text still saved, just no estimate
-  const existing = est[mealKey];
-  if(existing && (existing.sourceText===desc || (existing.source==="photo" && existing.description===desc))) return; // already estimated this
-  const flag = selectedDate+":"+mealKey;
   mealEstimating.add(flag);
   if(activeView==="checkin") renderCheckin();
   try{
-    const r = await analyzeMealText(desc);
+    const r = await analyzeMealText(typed);
     const c2 = ensureCheckin(selectedDate);
     c2.nutrition.est = c2.nutrition.est || {};
-    c2.nutrition.est[mealKey] = {...r, source:"text", sourceText:desc};
+    c2.nutrition.est[mealKey] = {...r, source:"text", sourceText:typed};
     recomputeNutrition(c2); save();
   }catch(e){ toast("Couldn't estimate "+mealLabel(mealKey)+": "+e.message); }
   finally{
