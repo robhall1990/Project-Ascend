@@ -1,0 +1,16 @@
+{
+  "name": "Project Ascend — High Performer Tracker",
+  "short_name": "Ascend",
+  "description": "Track daily actions across Health, Career, Leadership and Family — and coach yourself toward your full potential.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#12131f",
+  "theme_color": "#1a1c2e",
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "./icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
