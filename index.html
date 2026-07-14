@@ -127,6 +127,24 @@
   .supp.on{border-color:var(--accent); color:var(--text)}
   .boolbtn{background:var(--card2); border:1px solid var(--line); color:var(--muted); border-radius:999px; padding:7px 16px; font-size:13px; font-weight:700}
   .boolbtn.on{background:var(--green); color:#12131f; border-color:transparent}
+  .meal-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px}
+  .meal-actions{display:flex; align-items:center; gap:6px}
+  .cambtn{background:var(--card2); border:1px solid var(--line); border-radius:999px; width:38px; height:34px; font-size:16px}
+  .cambtn:active{transform:scale(.94)}
+  .meal-est{font-size:12px; color:var(--accent2); margin-top:4px}
+  .meal-est-sum{display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--card2);
+    border:1px solid var(--line); border-radius:12px; padding:10px 12px; font-size:13px}
+  .meal-est-sum .grow{flex:1; min-width:150px}
+  .meal-thumb{width:100%; max-height:200px; object-fit:cover; border-radius:12px; margin-bottom:10px}
+  .meal-desc{font-weight:700; font-size:16px; margin-bottom:8px}
+  .macro-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+  .macro-grid .mt{background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:8px 4px; text-align:center}
+  .macro-grid .mt b{display:block; font-size:17px}
+  .macro-grid .mt span{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px}
+  .analyzing{padding:16px 0; text-align:center; color:var(--muted)}
+  .spin{display:inline-block; width:14px; height:14px; border:2px solid var(--line); border-top-color:var(--accent);
+    border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:6px}
+  @keyframes spin{to{transform:rotate(360deg)}}
 
   /* training sessions */
   .sess{display:flex; align-items:center; gap:10px; padding:8px 2px; border-bottom:1px solid var(--line)}
@@ -462,11 +480,12 @@
     <input id="m-sess-dist" type="number" min="0" step="0.1" inputmode="decimal" placeholder="e.g. 8.5">
     <label class="f">Calories (optional)</label>
     <input id="m-sess-cal" type="number" min="0" inputmode="numeric">
+    <label class="f">Avg heart rate (bpm, optional)</label>
+    <input id="m-sess-hr" type="number" min="0" inputmode="numeric">
     <label class="f">RPE — effort 1–10</label>
     <div class="rangewrap"><input id="m-sess-rpe" type="range" min="1" max="10" value="6"><output id="m-sess-rpe-out">6</output></div>
     <label class="f">Notes</label>
     <input id="m-sess-notes" placeholder="Intervals, route, how it felt…">
-    <div class="small muted" style="margin-top:8px">📎 Garmin file import — coming later</div>
     <div class="btnrow">
       <button class="btn secondary" id="m-sess-cancel">Cancel</button>
       <button class="btn danger" id="m-sess-delete" style="display:none">Delete</button>
@@ -586,6 +605,22 @@
   </div>
 </div>
 
+<!-- meal photo analysis modal -->
+<div class="modal-back" id="m-meal">
+  <div class="modal">
+    <h3>Meal analysis</h3>
+    <div id="m-meal-thumb"></div>
+    <div id="m-meal-body"></div>
+    <div class="btnrow">
+      <button class="btn secondary" id="m-meal-cancel">Close</button>
+      <button class="btn" id="m-meal-use" style="display:none">Use</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="meal-photo-input" accept="image/*" style="display:none">
+<input type="file" id="workout-file-input" accept=".tcx,.gpx,.fit,application/gpx+xml" style="display:none">
+
 <div class="toast" id="toast"></div>
 <div class="viz-tip" id="viz-tip"></div>
 
@@ -701,6 +736,7 @@ const CHECKIN_SCHEMA = [
     {k:"lunch",     label:"Lunch",     type:"meal", quick:{k:"lunchSalad", label:"Salad"}},
     {k:"dinner",    label:"Dinner",    type:"meal"},
     {k:"snacks",    label:"Snacks",    type:"meal"},
+    {k:"__estsum",  label:"",          type:"estsum"},
     {k:"calories",     label:"Calories (optional)", type:"number", step:"1"},
     {k:"protein",      label:"Protein estimate (g)",type:"number", step:"1"},
     {k:"fruitVeg",     label:"Fruit & veg portions",type:"number", step:"1"},
@@ -902,13 +938,31 @@ function fieldHTML(sect, f, val){
   if(f.type==="meal"){
     const c = ensureCheckin(selectedDate);
     const quickOn = f.quick ? !!c.nutrition[f.quick.k] : false;
+    const est = (c.nutrition.est||{})[f.k];
     return `<div class="frow">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px">
+      <div class="meal-head">
         <label style="margin:0">${f.label}</label>
-        ${f.quick?`<label class="supp ${quickOn?"on":""}"><input type="checkbox" data-sect="${sect}" data-k="${f.quick.k}" data-t="chk" ${quickOn?"checked":""}>${esc(f.quick.label)}</label>`:""}
+        <div class="meal-actions">
+          ${f.quick?`<label class="supp ${quickOn?"on":""}"><input type="checkbox" data-sect="${sect}" data-k="${f.quick.k}" data-t="chk" ${quickOn?"checked":""}>${esc(f.quick.label)}</label>`:""}
+          <button class="cambtn" data-meal="${f.k}" type="button" title="Analyze a photo">📷</button>
+        </div>
       </div>
       <input id="${id}" class="wide" data-sect="${sect}" data-k="${f.k}" data-t="text" type="text"
-        placeholder="${f.quick?"…or what did you have?":"What did you have?"}" value="${esc(val??"")}"></div>`;
+        placeholder="${f.quick?"…or what did you have?":"What did you have?"}" value="${esc(val??"")}">
+      ${est?`<div class="meal-est">📷 ~${Math.round(est.calories)} kcal · ${Math.round(est.protein_g)} g protein${est.confidence?` · ${esc(est.confidence)} confidence`:""}</div>`:""}
+      </div>`;
+  }
+  if(f.type==="estsum"){
+    const c = ensureCheckin(selectedDate);
+    const est = c.nutrition.est||{};
+    const keys = Object.keys(est);
+    if(!keys.length) return "";
+    const kcal = keys.reduce((s,k)=>s+(+est[k].calories||0),0);
+    const pro = keys.reduce((s,k)=>s+(+est[k].protein_g||0),0);
+    return `<div class="frow"><div class="meal-est-sum">
+      <span class="grow">📷 Photos estimate <b>~${Math.round(kcal)} kcal</b> · <b>${Math.round(pro)} g protein</b></span>
+      <button class="btn secondary small" id="est-apply" type="button">Use as totals</button>
+    </div></div>`;
   }
   if(f.type==="supps") return `<div class="frow"><label>${f.label}</label>
     <div class="suppgrid">${DB.settings.supplements.map(s=>{
@@ -930,11 +984,14 @@ function renderCheckin(){
         <div class="sess" data-id="${s.id}">
           <span class="em">${SESS_EMOJI[s.type]||"⭐"}</span>
           <div class="info"><div class="nm">${esc(s.type)}</div>
-          <div class="meta">${s.durationMin?`${s.durationMin} min`:""}${s.distanceKm?` · ${s.distanceKm} km`:""}${s.calories?` · ${s.calories} kcal`:""}${s.rpe?` · RPE ${s.rpe}`:""}${s.notes?` · ${esc(s.notes)}`:""}</div></div>
+          <div class="meta">${s.durationMin?`${s.durationMin} min`:""}${s.distanceKm?` · ${s.distanceKm} km`:""}${s.calories?` · ${s.calories} kcal`:""}${s.avgHr?` · ${s.avgHr} bpm`:""}${s.rpe?` · RPE ${s.rpe}`:""}${s.notes?` · ${esc(s.notes)}`:""}</div></div>
           <button class="iconbtn sess-edit">✎</button>
         </div>`).join("") : `<div class="empty">No sessions yet — rest day or log one below.</div>`)
-        + `<button class="btn secondary small" id="sess-add" style="margin-top:8px">＋ Add session</button>
-           <div class="small muted" style="margin-top:6px">📎 Garmin import — coming later</div>`;
+        + `<div class="btnrow" style="margin-top:8px">
+             <button class="btn secondary small grow" id="sess-add">＋ Add session</button>
+             <button class="btn secondary small grow" id="sess-import">📁 Import Garmin file</button>
+           </div>
+           <div class="small muted" style="margin-top:6px">In Garmin Connect, open an activity → ⚙ → <b>Export to TCX</b> (or GPX), then import it here. Distance, time, calories &amp; heart rate fill in automatically.</div>`;
     } else {
       body = S.fields.map(f=>fieldHTML(S.key, f, S.key==="physical"&&f.k==="supplements" ? c.physical.supplements : (c[S.key]||{})[f.k])).join("");
     }
@@ -997,9 +1054,21 @@ function renderCheckin(){
   });
   const addBtn = $("sess-add");
   if(addBtn) addBtn.onclick = ()=>openSessModal(null);
+  const impBtn = $("sess-import");
+  if(impBtn) impBtn.onclick = ()=>$("workout-file-input").click();
   document.querySelectorAll(".sess-edit").forEach(b=>{
     b.onclick = ()=>openSessModal(b.closest(".sess").dataset.id);
   });
+  document.querySelectorAll(".cambtn").forEach(b=>{
+    b.onclick = ()=>{ pendingMeal = b.dataset.meal; $("meal-photo-input").click(); };
+  });
+  const estApply = $("est-apply");
+  if(estApply) estApply.onclick = ()=>{
+    const c2 = ensureCheckin(selectedDate), est = c2.nutrition.est||{}, keys = Object.keys(est);
+    c2.nutrition.calories = Math.round(keys.reduce((s,k)=>s+(+est[k].calories||0),0));
+    c2.nutrition.protein  = Math.round(keys.reduce((s,k)=>s+(+est[k].protein_g||0),0));
+    save(); render(); toast("Totals updated from photos");
+  };
 
   renderQuickLog();
   renderReviewCard();
@@ -1011,15 +1080,17 @@ function markDone(sect){
 }
 
 /* training session modal */
-let sessEditId = null;
+let sessEditId = null, sessExtraMaxHr = null;
 function openSessModal(id){
   sessEditId = id;
   const c = ensureCheckin(selectedDate);
   const s = id ? c.training.find(x=>x.id===id) : null;
+  sessExtraMaxHr = s ? (s.maxHr ?? null) : null;
   $("m-sess-type").value = s?s.type:"Run";
   $("m-sess-dur").value = s?(s.durationMin??""):"";
   $("m-sess-dist").value = s?(s.distanceKm??""):"";
   $("m-sess-cal").value = s?(s.calories??""):"";
+  $("m-sess-hr").value = s?(s.avgHr??""):"";
   $("m-sess-rpe").value = s?(s.rpe??6):6; $("m-sess-rpe-out").textContent = $("m-sess-rpe").value;
   $("m-sess-notes").value = s?(s.notes||""):"";
   $("m-sess-delete").style.display = s ? "block" : "none";
@@ -1040,6 +1111,8 @@ $("m-sess-save").onclick = ()=>{
     durationMin: $("m-sess-dur").value ? +$("m-sess-dur").value : null,
     distanceKm: $("m-sess-dist").value ? +$("m-sess-dist").value : null,
     calories: $("m-sess-cal").value ? +$("m-sess-cal").value : null,
+    avgHr: $("m-sess-hr").value ? +$("m-sess-hr").value : null,
+    maxHr: sessExtraMaxHr,
     rpe: +$("m-sess-rpe").value,
     notes: $("m-sess-notes").value.trim()
   };
@@ -1047,6 +1120,207 @@ $("m-sess-save").onclick = ()=>{
   else c.training.push(rec);
   save(); $("m-sess").classList.remove("open"); render(); toast("Training logged 💪");
 };
+
+/* ============================ meal photo analysis ============================ */
+let pendingMeal = null, pendingMealResult = null;
+function mealLabel(k){
+  const nut = CHECKIN_SCHEMA.find(s=>s.key==="nutrition");
+  const f = nut.fields.find(x=>x.k===k);
+  return f ? f.label : "meal";
+}
+function downscaleImage(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      try{
+        const scale = Math.min(1, maxDim/Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width*scale)), h = Math.max(1, Math.round(img.height*scale));
+        const cv = document.createElement("canvas"); cv.width=w; cv.height=h;
+        cv.getContext("2d").drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve(cv.toDataURL("image/jpeg", quality).split(",")[1]);
+      }catch(e){ URL.revokeObjectURL(url); reject(e); }
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error("Couldn't read that image")); };
+    img.src = url;
+  });
+}
+async function analyzeMeal(b64){
+  const prompt = `You are a nutrition estimation assistant. Analyze the meal in this photo and estimate its nutrition for the full portion shown. Respond with ONLY a JSON object and nothing else, in exactly this shape:
+{"description":"short name of the meal, e.g. Grilled chicken salad with avocado","calories":<number>,"protein_g":<number>,"carbs_g":<number>,"fat_g":<number>,"confidence":"low|medium|high","notes":"one short caveat, or empty string"}`;
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{
+      "content-type":"application/json",
+      "x-api-key": DB.settings.apiKey,
+      "anthropic-version":"2023-06-01",
+      "anthropic-dangerous-direct-browser-access":"true"
+    },
+    body: JSON.stringify({
+      model: DB.settings.model || "claude-opus-4-8",
+      max_tokens: 700,
+      messages:[{role:"user", content:[
+        {type:"image", source:{type:"base64", media_type:"image/jpeg", data:b64}},
+        {type:"text", text:prompt}
+      ]}]
+    })
+  });
+  const data = await res.json().catch(()=>null);
+  if(!res.ok) throw new Error((data && data.error && data.error.message) || `HTTP ${res.status}`);
+  if(data.stop_reason==="refusal") throw new Error("The model declined to analyze this image.");
+  const text = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+  let obj;
+  try{ obj = JSON.parse(text); }
+  catch(e){ const m = text.match(/\{[\s\S]*\}/); if(!m) throw new Error("Couldn't read the analysis — try again"); obj = JSON.parse(m[0]); }
+  ["calories","protein_g","carbs_g","fat_g"].forEach(k=>{ obj[k] = +obj[k] || 0; });
+  obj.description = obj.description || "Meal";
+  obj.confidence = obj.confidence || "medium";
+  obj.notes = obj.notes || "";
+  return obj;
+}
+function macroTile(label, val, unit){
+  return `<div class="mt"><b>${val}</b><span>${label}${unit?` (${unit})`:""}</span></div>`;
+}
+function renderMealResult(r){
+  return `<div class="meal-desc">${esc(r.description)}</div>
+    <div class="macro-grid">
+      ${macroTile("Calories", Math.round(r.calories), "kcal")}
+      ${macroTile("Protein", Math.round(r.protein_g), "g")}
+      ${macroTile("Carbs", Math.round(r.carbs_g), "g")}
+      ${macroTile("Fat", Math.round(r.fat_g), "g")}
+    </div>
+    <div class="small muted" style="margin-top:8px">Confidence: ${esc(r.confidence)}${r.notes?` · ${esc(r.notes)}`:""}</div>
+    <div class="small muted" style="margin-top:4px">Estimates only — adjust the fields if you know better.</div>`;
+}
+$("meal-photo-input").addEventListener("change", async e=>{
+  const file = e.target.files[0]; e.target.value = "";
+  if(!file || !pendingMeal) return;
+  if(!DB.settings.apiKey){ toast("Add your API key in Settings to analyze meal photos"); return; }
+  let b64;
+  try{ b64 = await downscaleImage(file, 1024, 0.8); }
+  catch(err){ toast("Couldn't read that image"); return; }
+  pendingMealResult = null;
+  $("m-meal-thumb").innerHTML = `<img class="meal-thumb" alt="meal" src="data:image/jpeg;base64,${b64}">`;
+  $("m-meal-body").innerHTML = `<div class="analyzing"><span class="spin"></span>Analyzing your ${esc(mealLabel(pendingMeal))}…</div>`;
+  $("m-meal-use").style.display = "none";
+  $("m-meal").classList.add("open");
+  try{
+    const r = await analyzeMeal(b64);
+    pendingMealResult = r;
+    $("m-meal-body").innerHTML = renderMealResult(r);
+    $("m-meal-use").style.display = "block";
+    $("m-meal-use").textContent = "Use for " + mealLabel(pendingMeal);
+  }catch(err){
+    $("m-meal-body").innerHTML = `<div class="small" style="color:var(--red)">${esc(err.message)}</div>`;
+  }
+});
+$("m-meal-cancel").onclick = ()=>$("m-meal").classList.remove("open");
+$("m-meal-use").onclick = ()=>{
+  if(!pendingMealResult || !pendingMeal) return;
+  const c = ensureCheckin(selectedDate);
+  c.nutrition[pendingMeal] = pendingMealResult.description;
+  c.nutrition.est = c.nutrition.est || {};
+  c.nutrition.est[pendingMeal] = pendingMealResult;
+  save(); $("m-meal").classList.remove("open"); render(); toast("Saved to " + mealLabel(pendingMeal));
+};
+
+/* ============================ Garmin file import (TCX / GPX) ============================ */
+function byLocal(root, name){ return [...root.getElementsByTagName("*")].filter(e=>e.localName===name); }
+function mapSport(s){
+  s = (s||"").toLowerCase();
+  if(s.includes("run")) return "Run";
+  if(s.includes("bik")||s.includes("cycl")) return "Bike";
+  if(s.includes("swim")) return "Swim";
+  if(s.includes("strength")||s.includes("gym")||s.includes("cardio")||s.includes("fitness")||s.includes("training")) return "Gym";
+  if(s.includes("walk")||s.includes("hik")) return "Recovery";
+  return "Run";
+}
+function haversine(a, b){
+  const R=6371000, toR=x=>x*Math.PI/180;
+  const dLat=toR(b.lat-a.lat), dLon=toR(b.lon-a.lon);
+  const h = Math.sin(dLat/2)**2 + Math.cos(toR(a.lat))*Math.cos(toR(b.lat))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+function parseTCX(doc){
+  const laps = byLocal(doc, "Lap");
+  let sec=0, m=0, cal=0; const avgs=[], maxs=[];
+  const num = (el, tag)=>{ const e=byLocal(el, tag)[0]; return e?parseFloat(e.textContent)||0:0; };
+  laps.forEach(l=>{
+    sec += num(l,"TotalTimeSeconds"); m += num(l,"DistanceMeters"); cal += num(l,"Calories");
+    const a = byLocal(l,"AverageHeartRateBpm")[0]; if(a){ const v=byLocal(a,"Value")[0]; if(v) avgs.push(parseFloat(v.textContent)); }
+    const x = byLocal(l,"MaximumHeartRateBpm")[0]; if(x){ const v=byLocal(x,"Value")[0]; if(v) maxs.push(parseFloat(v.textContent)); }
+  });
+  if(!m){ // no lap distance — sum trackpoints
+    const pts = byLocal(doc,"Trackpoint").map(tp=>{
+      const pos = byLocal(tp,"Position")[0]; if(!pos) return null;
+      return {lat:num(pos,"LatitudeDegrees"), lon:num(pos,"LongitudeDegrees")};
+    }).filter(Boolean);
+    for(let i=1;i<pts.length;i++) m += haversine(pts[i-1], pts[i]);
+  }
+  const act = byLocal(doc,"Activity")[0];
+  return {
+    type: mapSport(act?act.getAttribute("Sport"):""),
+    durationMin: sec?Math.round(sec/60):null,
+    distanceKm: m?+(m/1000).toFixed(2):null,
+    calories: cal?Math.round(cal):null,
+    avgHr: avgs.length?Math.round(avgs.reduce((x,y)=>x+y,0)/avgs.length):null,
+    maxHr: maxs.length?Math.round(Math.max(...maxs)):null
+  };
+}
+function parseGPX(doc){
+  const pts = byLocal(doc,"trkpt").map(p=>{
+    const hrEl = byLocal(p,"hr")[0];
+    const timeEl = byLocal(p,"time")[0];
+    return {
+      lat: parseFloat(p.getAttribute("lat")), lon: parseFloat(p.getAttribute("lon")),
+      time: timeEl?timeEl.textContent:null,
+      hr: hrEl?parseFloat(hrEl.textContent):null
+    };
+  });
+  let m=0;
+  for(let i=1;i<pts.length;i++) if(!isNaN(pts[i].lat)&&!isNaN(pts[i-1].lat)) m += haversine(pts[i-1], pts[i]);
+  const times = pts.map(p=>p.time).filter(Boolean);
+  let sec = null;
+  if(times.length>=2){ const d=(new Date(times[times.length-1]) - new Date(times[0]))/1000; if(d>0) sec=d; }
+  const hrs = pts.map(p=>p.hr).filter(v=>v!=null && !isNaN(v));
+  const typeEl = byLocal(doc,"type")[0];
+  return {
+    type: typeEl?mapSport(typeEl.textContent):"Run",
+    durationMin: sec?Math.round(sec/60):null,
+    distanceKm: m?+(m/1000).toFixed(2):null,
+    calories: null,
+    avgHr: hrs.length?Math.round(hrs.reduce((x,y)=>x+y,0)/hrs.length):null,
+    maxHr: hrs.length?Math.round(Math.max(...hrs)):null
+  };
+}
+async function parseWorkoutFile(file){
+  const name = file.name.toLowerCase();
+  if(name.endsWith(".fit")) throw new Error("FIT files are binary. In Garmin Connect open the activity → ⚙ → 'Export to TCX' (or GPX), then import that file.");
+  const text = await file.text();
+  const doc = new DOMParser().parseFromString(text, "application/xml");
+  if(doc.getElementsByTagName("parsererror").length) throw new Error("Couldn't read that file — is it a valid TCX or GPX?");
+  if(byLocal(doc,"TrainingCenterDatabase").length || name.endsWith(".tcx")) return parseTCX(doc);
+  if(byLocal(doc,"gpx").length || name.endsWith(".gpx")) return parseGPX(doc);
+  throw new Error("Unrecognised file — export as TCX or GPX from Garmin Connect.");
+}
+$("workout-file-input").addEventListener("change", async e=>{
+  const file = e.target.files[0]; e.target.value = "";
+  if(!file) return;
+  try{
+    const w = await parseWorkoutFile(file);
+    openSessModal(null);
+    $("m-sess-type").value = w.type || "Run";
+    $("m-sess-dur").value = w.durationMin ?? "";
+    $("m-sess-dist").value = w.distanceKm ?? "";
+    $("m-sess-cal").value = w.calories ?? "";
+    $("m-sess-hr").value = w.avgHr ?? "";
+    sessExtraMaxHr = w.maxHr ?? null;
+    $("m-sess-notes").value = "Imported from " + file.name;
+    const bits = [w.distanceKm?w.distanceKm+" km":"", w.durationMin?w.durationMin+" min":""].filter(Boolean).join(" · ");
+    toast("Imported" + (bits?" — "+bits:"") + " · review & save");
+  }catch(err){ toast(err.message); }
+});
 
 /* weekly review */
 let reviewWeek = null;

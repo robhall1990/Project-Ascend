@@ -9,8 +9,8 @@ Everything lives on your phone. No accounts, no server, no tracking.
 - **Dashboard** — today's High Performance Score with per-component breakdown, current streak, last-7-days trend, weekly average, and at-a-glance tiles (weight, body fat %, sleep, training, calories, protein, alcohol, mood).
 - **Daily check-in** across six sections:
   - **Physical** — weight, body fat, sleep, energy, mood, alcohol units, water, steps, supplements tick-boxes
-  - **Nutrition** — meals (free text), calories, protein, fruit & veg portions, sugar cravings, hunger
-  - **Training** — sessions (bike / run / swim / gym / recovery) with duration, calories, RPE and notes (Garmin import placeholder)
+  - **Nutrition** — meals split into Breakfast / Lunch / Dinner / Snacks (one-tap Huel & Salad quick-ticks), plus **📷 meal-photo analysis**: snap a plate and Claude estimates the dish, calories and macros, then fills the fields; calories, protein, fruit & veg portions, sugar cravings, hunger
+  - **Training** — sessions (run / bike / swim / gym / recovery, defaulting to Run) with time, distance, calories, avg heart rate, RPE and notes; **Garmin file import** (TCX / GPX)
   - **Family** — present today, quality-time minutes, phone-free evening, played with children, date night, journal
   - **Career** — hours worked, biggest win, deep-work minutes, leadership action, AI learning, strategic-vs-operational %
   - **Mind** — gratitude, biggest stress, meditation, reading, screen time, overall mood
@@ -33,6 +33,14 @@ Everything lives on your phone. No accounts, no server, no tracking.
 4. Launch it from your home screen like any app.
 
 > The app must be served over HTTPS for install/offline support — GitHub Pages does this for free. Any other static host (Netlify, Cloudflare Pages) works too.
+
+## Meal photo analysis
+
+The 📷 button on each meal sends a downscaled photo to the Claude API (using the key you set in Settings) and returns an estimated dish name, calories and macros. It's on-demand only — no photo is sent unless you tap it, and nothing is stored server-side. Estimates are approximate; edit the fields if you know better.
+
+## Garmin
+
+Garmin has no browser-usable public API (their Health/Activity API is a server-side partner program requiring OAuth signing and approval), so a fully serverless PWA can't auto-sync live. What the app **does** support is **file import**: in Garmin Connect open an activity → ⚙ → **Export to TCX** (or GPX), then import that file — type, time, distance, calories and heart rate fill in automatically. If live auto-sync ever becomes a must-have, it would need a small backend service; happy to add that as a separate piece.
 
 ## Privacy
 
