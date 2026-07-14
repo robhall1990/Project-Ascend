@@ -453,11 +453,13 @@
     <h3>Training session</h3>
     <label class="f">Type</label>
     <select id="m-sess-type">
-      <option>Bike</option><option>Run</option><option>Swim</option><option>Gym</option>
+      <option>Run</option><option>Bike</option><option>Swim</option><option>Gym</option>
       <option>Recovery</option><option>Other</option>
     </select>
-    <label class="f">Duration (minutes)</label>
-    <input id="m-sess-dur" type="number" min="0" inputmode="numeric" placeholder="e.g. 60">
+    <label class="f">Time (minutes)</label>
+    <input id="m-sess-dur" type="number" min="0" inputmode="numeric" placeholder="e.g. 45">
+    <label class="f">Distance (km, optional)</label>
+    <input id="m-sess-dist" type="number" min="0" step="0.1" inputmode="decimal" placeholder="e.g. 8.5">
     <label class="f">Calories (optional)</label>
     <input id="m-sess-cal" type="number" min="0" inputmode="numeric">
     <label class="f">RPE — effort 1–10</label>
@@ -695,7 +697,10 @@ const CHECKIN_SCHEMA = [
     {k:"supplements",label:"Supplements taken",  type:"supps"},
   ]},
   {key:"nutrition", label:"Nutrition", emoji:"🥗", fields:[
-    {k:"meals",        label:"Meals — what did you eat?", type:"textarea"},
+    {k:"breakfast", label:"Breakfast", type:"meal", quick:{k:"breakfastHuel", label:"Huel"}},
+    {k:"lunch",     label:"Lunch",     type:"meal", quick:{k:"lunchSalad", label:"Salad"}},
+    {k:"dinner",    label:"Dinner",    type:"meal"},
+    {k:"snacks",    label:"Snacks",    type:"meal"},
     {k:"calories",     label:"Calories (optional)", type:"number", step:"1"},
     {k:"protein",      label:"Protein estimate (g)",type:"number", step:"1"},
     {k:"fruitVeg",     label:"Fruit & veg portions",type:"number", step:"1"},
@@ -705,7 +710,6 @@ const CHECKIN_SCHEMA = [
   {key:"training", label:"Training", emoji:"🏋️", fields:[]},
   {key:"family", label:"Family", emoji:"👨‍👩‍👧‍👦", fields:[
     {k:"present",   label:"Present with family today?", type:"bool"},
-    {k:"qualityMin",label:"Quality time (minutes)",     type:"number", step:"5"},
     {k:"phoneFree", label:"Evening phone-free?",        type:"bool"},
     {k:"played",    label:"Played with children?",      type:"bool"},
     {k:"dateNight", label:"Date night?",                type:"bool"},
@@ -741,7 +745,7 @@ function computeHPS(date){
   f.training  = (c.training||[]).length > 0 ? 1 : 0;
   f.nutrition = 0.5*clamp01((c.nutrition.fruitVeg||0) / T.fruitVeg) + 0.5*clamp01((c.nutrition.protein||0) / T.proteinG);
   f.alcohol   = filled(c.physical.alcohol) ? clamp01(1 - c.physical.alcohol / T.alcoholMaxUnits) : 1;
-  f.family    = (c.family.present?0.4:0) + (c.family.phoneFree?0.2:0) + (c.family.played?0.2:0) + ((c.family.qualityMin||0)>=30?0.2:0);
+  f.family    = (c.family.present?0.4:0) + (c.family.phoneFree?0.3:0) + (c.family.played?0.3:0);
   f.career    = 0.6*clamp01((c.career.deepWorkMin||0)/T.deepWorkMin) + (c.career.biggestWin?0.2:0) + (c.career.leadershipAction?0.2:0);
   f.reflection= ((c.mind.gratitude?0.6:0) + ((c.mind.meditationMin||0)>0?0.4:0));
   let totW = 0, pts = 0;
@@ -832,17 +836,34 @@ function renderHome(){
     return null;
   };
   const w = latest("weight"), bf = latest("bodyFat");
-  const mood = filled((c.mind||{}).overallMood) ? c.mind.overallMood : (c.physical||{}).mood;
+  // previous distinct entry for slow-moving physical stats (weight, body fat)
+  const prevLatest = (field, fromAgo)=>{
+    for(let i=fromAgo+1;i<120;i++){ const cc=checkin(addDays(t,-i)); if(cc&&filled(cc.physical[field])) return cc.physical[field]; }
+    return null;
+  };
+  // arrow vs the previous value; plain direction, no judgement
+  const arrow = (cur, prev, decimals=1)=>{
+    if(cur==null || prev==null || isNaN(+cur) || isNaN(+prev)) return "";
+    const d = +cur - +prev;
+    if(Math.abs(d) < 1/Math.pow(10,decimals+1)) return "→ same";
+    return `${d>0?"▲":"▼"} ${(+Math.abs(d).toFixed(decimals)).toString()}`;
+  };
+  const y = addDays(t,-1);
+  const cy = checkin(y)||{physical:{},nutrition:{},training:[],family:{},career:{},mind:{}};
+  const moodOf = cc => filled((cc.mind||{}).overallMood) ? cc.mind.overallMood : (cc.physical||{}).mood;
+  const alcOf = (d, cc) => filled((cc.physical||{}).alcohol) ? cc.physical.alcohol : (hasAnyData(d) ? 0 : null);
+  const mood = moodOf(c);
   const trainTxt = (c.training||[]).length ? (c.training||[]).map(s=>s.type).join(", ") : "–";
+  const trainMin = cc => (cc.training||[]).length ? (cc.training||[]).reduce((s,x)=>s+(+x.durationMin||0),0) : null;
   $("tiles").innerHTML = [
-    {l:"Weight", v:w?fmtN(w.v):"–", u:"kg", s:w&&w.ago>0?`${w.ago}d ago`:""},
-    {l:"Body fat", v:bf?fmtN(bf.v):"–", u:"%", s:bf&&bf.ago>0?`${bf.ago}d ago`:""},
-    {l:"Sleep", v:fmtN(c.physical.sleepHours), u:"h", s:""},
-    {l:"Training", v:trainTxt, u:"", s:(c.training||[]).length?`${(c.training||[]).reduce((s,x)=>s+(+x.durationMin||0),0)} min`:""},
-    {l:"Calories", v:fmtN(c.nutrition.calories), u:"", s:""},
-    {l:"Protein", v:fmtN(c.nutrition.protein), u:"g", s:""},
-    {l:"Alcohol", v:filled(c.physical.alcohol)?fmtN(c.physical.alcohol):"0", u:"units", s:""},
-    {l:"Mood", v:fmtN(mood), u:"/10", s:""},
+    {l:"Weight", v:w?fmtN(w.v):"–", u:"kg", s:[w&&w.ago>0?`${w.ago}d ago`:"", w?arrow(w.v, prevLatest("weight", w.ago)):""].filter(Boolean).join(" · ")},
+    {l:"Body fat", v:bf?fmtN(bf.v):"–", u:"%", s:[bf&&bf.ago>0?`${bf.ago}d ago`:"", bf?arrow(bf.v, prevLatest("bodyFat", bf.ago)):""].filter(Boolean).join(" · ")},
+    {l:"Sleep", v:fmtN(c.physical.sleepHours), u:"h", s:arrow(c.physical.sleepHours, cy.physical.sleepHours)},
+    {l:"Training", v:trainTxt, u:"", s:[trainMin(c)?`${trainMin(c)} min`:"", arrow(trainMin(c), trainMin(cy), 0)].filter(Boolean).join(" · ")},
+    {l:"Calories", v:fmtN(c.nutrition.calories), u:"", s:arrow(c.nutrition.calories, cy.nutrition.calories, 0)},
+    {l:"Protein", v:fmtN(c.nutrition.protein), u:"g", s:arrow(c.nutrition.protein, cy.nutrition.protein, 0)},
+    {l:"Alcohol", v:filled(c.physical.alcohol)?fmtN(c.physical.alcohol):"0", u:"units", s:arrow(alcOf(t,c), alcOf(y,cy))},
+    {l:"Mood", v:fmtN(mood), u:"/10", s:arrow(mood, moodOf(cy), 0)},
   ].map(x=>`<div class="tile"><div class="tl">${x.l}</div><div class="tv">${esc(x.v)}${x.u?` <small>${x.u}</small>`:""}</div><div class="ts">${x.s}</div></div>`).join("");
 
   // Sunday review nudge
@@ -878,6 +899,17 @@ function fieldHTML(sect, f, val){
     <output>${val!=null?val+"%":"–"}</output></span></div>`;
   if(f.type==="bool") return `<div class="frow inline"><label>${f.label}</label>
     <button class="boolbtn ${val?"on":""}" data-sect="${sect}" data-k="${f.k}" data-t="bool">${val?"Yes ✓":"No"}</button></div>`;
+  if(f.type==="meal"){
+    const c = ensureCheckin(selectedDate);
+    const quickOn = f.quick ? !!c.nutrition[f.quick.k] : false;
+    return `<div class="frow">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px">
+        <label style="margin:0">${f.label}</label>
+        ${f.quick?`<label class="supp ${quickOn?"on":""}"><input type="checkbox" data-sect="${sect}" data-k="${f.quick.k}" data-t="chk" ${quickOn?"checked":""}>${esc(f.quick.label)}</label>`:""}
+      </div>
+      <input id="${id}" class="wide" data-sect="${sect}" data-k="${f.k}" data-t="text" type="text"
+        placeholder="${f.quick?"…or what did you have?":"What did you have?"}" value="${esc(val??"")}"></div>`;
+  }
   if(f.type==="supps") return `<div class="frow"><label>${f.label}</label>
     <div class="suppgrid">${DB.settings.supplements.map(s=>{
       const on = (val||[]).includes(s);
@@ -898,7 +930,7 @@ function renderCheckin(){
         <div class="sess" data-id="${s.id}">
           <span class="em">${SESS_EMOJI[s.type]||"⭐"}</span>
           <div class="info"><div class="nm">${esc(s.type)}</div>
-          <div class="meta">${s.durationMin?`${s.durationMin} min`:""}${s.calories?` · ${s.calories} kcal`:""}${s.rpe?` · RPE ${s.rpe}`:""}${s.notes?` · ${esc(s.notes)}`:""}</div></div>
+          <div class="meta">${s.durationMin?`${s.durationMin} min`:""}${s.distanceKm?` · ${s.distanceKm} km`:""}${s.calories?` · ${s.calories} kcal`:""}${s.rpe?` · RPE ${s.rpe}`:""}${s.notes?` · ${esc(s.notes)}`:""}</div></div>
           <button class="iconbtn sess-edit">✎</button>
         </div>`).join("") : `<div class="empty">No sessions yet — rest day or log one below.</div>`)
         + `<button class="btn secondary small" id="sess-add" style="margin-top:8px">＋ Add session</button>
@@ -926,6 +958,13 @@ function renderCheckin(){
         const cur = !!c2[el.dataset.sect][el.dataset.k];
         c2[el.dataset.sect][el.dataset.k] = !cur;
         el.classList.toggle("on", !cur); el.textContent = !cur ? "Yes ✓" : "No";
+        save(); markDone(el.dataset.sect);
+      });
+    } else if(t==="chk"){
+      el.addEventListener("change", ()=>{
+        const c2 = ensureCheckin(selectedDate);
+        c2[el.dataset.sect][el.dataset.k] = el.checked;
+        el.closest(".supp").classList.toggle("on", el.checked);
         save(); markDone(el.dataset.sect);
       });
     } else if(t==="supp"){
@@ -977,8 +1016,9 @@ function openSessModal(id){
   sessEditId = id;
   const c = ensureCheckin(selectedDate);
   const s = id ? c.training.find(x=>x.id===id) : null;
-  $("m-sess-type").value = s?s.type:"Gym";
+  $("m-sess-type").value = s?s.type:"Run";
   $("m-sess-dur").value = s?(s.durationMin??""):"";
+  $("m-sess-dist").value = s?(s.distanceKm??""):"";
   $("m-sess-cal").value = s?(s.calories??""):"";
   $("m-sess-rpe").value = s?(s.rpe??6):6; $("m-sess-rpe-out").textContent = $("m-sess-rpe").value;
   $("m-sess-notes").value = s?(s.notes||""):"";
@@ -998,6 +1038,7 @@ $("m-sess-save").onclick = ()=>{
     id: sessEditId || uid(),
     type: $("m-sess-type").value,
     durationMin: $("m-sess-dur").value ? +$("m-sess-dur").value : null,
+    distanceKm: $("m-sess-dist").value ? +$("m-sess-dist").value : null,
     calories: $("m-sess-cal").value ? +$("m-sess-cal").value : null,
     rpe: +$("m-sess-rpe").value,
     notes: $("m-sess-notes").value.trim()
