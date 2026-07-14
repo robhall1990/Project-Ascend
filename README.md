@@ -9,7 +9,7 @@ Everything lives on your phone. No accounts, no server, no tracking.
 - **Dashboard** — today's High Performance Score with per-component breakdown, current streak, last-7-days trend, weekly average, and at-a-glance tiles (weight, body fat %, sleep, training, calories, protein, alcohol, mood).
 - **Daily check-in** across six sections:
   - **Physical** — weight, body fat, sleep, energy, mood, alcohol units, water, steps, supplements tick-boxes
-  - **Nutrition** — meals split into Breakfast / Lunch / Dinner / Snacks (one-tap Huel & Salad quick-ticks), plus **📷 meal-photo analysis**: snap a plate and Claude estimates the dish, calories and macros, then fills the fields; calories, protein, fruit & veg portions, sugar cravings, hunger
+  - **Nutrition** — meals split into Breakfast / Lunch / Dinner / Snacks (one-tap Huel & Salad quick-ticks). Every meal you submit — a 📷 photo, typed text, or a quick-tick — is estimated by Claude, and the day's **Calories and Protein totals auto-populate** from the sum (with a manual override you can reset back to auto). Also: fruit & veg portions, sugar cravings, hunger
   - **Training** — sessions (run / bike / swim / gym / recovery, defaulting to Run) with time, distance, calories, avg heart rate, RPE and notes; **Garmin file import** (TCX / GPX)
   - **Family** — present today, quality-time minutes, phone-free evening, played with children, date night, journal
   - **Career** — hours worked, biggest win, deep-work minutes, leadership action, AI learning, strategic-vs-operational %
@@ -34,9 +34,15 @@ Everything lives on your phone. No accounts, no server, no tracking.
 
 > The app must be served over HTTPS for install/offline support — GitHub Pages does this for free. Any other static host (Netlify, Cloudflare Pages) works too.
 
-## Meal photo analysis
+## Meal calorie estimation
 
-The 📷 button on each meal sends a downscaled photo to the Claude API (using the key you set in Settings) and returns an estimated dish name, calories and macros. It's on-demand only — no photo is sent unless you tap it, and nothing is stored server-side. Estimates are approximate; edit the fields if you know better.
+Every meal you submit is estimated with the Claude API (using the key you set in Settings), and the day's Calories and Protein totals auto-sum from those estimates:
+
+- **📷 Photo** — tap the camera on a meal, snap or pick a plate, and Claude returns the dish name, calories and macros.
+- **✍️ Typed text** — type what you ate (e.g. "Chicken & rice bowl") and it's estimated on the spot.
+- **Quick-ticks** — ticking Huel or Salad estimates that regular meal automatically.
+
+The day's Calories/Protein fields show "✨ Auto-summed from your meals". Type into either field to override manually; a "use auto from meals" link resets it. Estimates are approximate — nothing is sent unless you submit a meal, and nothing is stored server-side.
 
 ## Garmin
 

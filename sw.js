@@ -1,5 +1,5 @@
 /* Project Ascend service worker — offline-first app shell */
-const CACHE = "ascend-v4";
+const CACHE = "ascend-v5";
 const SHELL = [
   "./",
   "./index.html",

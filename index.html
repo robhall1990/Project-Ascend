@@ -132,6 +132,8 @@
   .cambtn{background:var(--card2); border:1px solid var(--line); border-radius:999px; width:38px; height:34px; font-size:16px}
   .cambtn:active{transform:scale(.94)}
   .meal-est{font-size:12px; color:var(--accent2); margin-top:4px}
+  .auto-hint{font-size:11px; color:var(--muted); margin:-2px 0 6px; text-align:right}
+  .linkbtn{background:none; border:none; color:var(--accent); font:inherit; font-size:11px; padding:0; text-decoration:underline; cursor:pointer}
   .meal-est-sum{display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--card2);
     border:1px solid var(--line); border-radius:12px; padding:10px 12px; font-size:13px}
   .meal-est-sum .grow{flex:1; min-width:150px}
@@ -736,9 +738,8 @@ const CHECKIN_SCHEMA = [
     {k:"lunch",     label:"Lunch",     type:"meal", quick:{k:"lunchSalad", label:"Salad"}},
     {k:"dinner",    label:"Dinner",    type:"meal"},
     {k:"snacks",    label:"Snacks",    type:"meal"},
-    {k:"__estsum",  label:"",          type:"estsum"},
-    {k:"calories",     label:"Calories (optional)", type:"number", step:"1"},
-    {k:"protein",      label:"Protein estimate (g)",type:"number", step:"1"},
+    {k:"calories",     label:"Calories",  type:"number", step:"1", auto:true},
+    {k:"protein",      label:"Protein (g)",type:"number", step:"1", auto:true},
     {k:"fruitVeg",     label:"Fruit & veg portions",type:"number", step:"1"},
     {k:"sugarCravings",label:"Sugar cravings (1–10)",type:"scale"},
     {k:"hunger",       label:"Hunger (1–10)",       type:"scale"},
@@ -768,6 +769,23 @@ const CHECKIN_SCHEMA = [
     {k:"overallMood",  label:"Overall mood (1–10)",  type:"scale"},
   ]},
 ];
+
+const MEAL_KEYS = ["breakfast","lunch","dinner","snacks"];
+const mealEstimating = new Set();   // "date:mealKey" while an estimate is in flight
+function recomputeNutrition(c){
+  const est = c.nutrition.est||{}, keys = Object.keys(est);
+  if(!c.nutrition.caloriesManual)
+    c.nutrition.calories = keys.length ? Math.round(keys.reduce((s,k)=>s+(+est[k].calories||0),0)) : null;
+  if(!c.nutrition.proteinManual)
+    c.nutrition.protein = keys.length ? Math.round(keys.reduce((s,k)=>s+(+est[k].protein_g||0),0)) : null;
+}
+function effectiveMealText(c, mealKey){
+  const t = (c.nutrition[mealKey]||"").trim();
+  if(t) return t;
+  if(mealKey==="breakfast" && c.nutrition.breakfastHuel) return "Huel (meal replacement shake, standard serving)";
+  if(mealKey==="lunch" && c.nutrition.lunchSalad) return "Salad";
+  return "";
+}
 
 /* ============================ HPS ============================ */
 const clamp01 = x => Math.max(0, Math.min(1, x));
@@ -921,8 +939,20 @@ const SESS_EMOJI = {Bike:"🚴", Run:"🏃", Swim:"🏊", Gym:"🏋️", Recover
 
 function fieldHTML(sect, f, val){
   const id = `ci-${sect}-${f.k}`;
-  if(f.type==="number") return `<div class="frow inline"><label for="${id}">${f.label}</label>
-    <input id="${id}" data-sect="${sect}" data-k="${f.k}" data-t="number" type="number" step="${f.step}" inputmode="decimal" value="${val??""}"></div>`;
+  if(f.type==="number"){
+    const inline = `<div class="frow inline"><label for="${id}">${f.label}</label>
+      <input id="${id}" data-sect="${sect}" data-k="${f.k}" data-t="number" ${f.auto?'data-auto="1"':''} type="number" step="${f.step}" inputmode="decimal" value="${val??""}"></div>`;
+    if(!f.auto) return inline;
+    const c = ensureCheckin(selectedDate);
+    const hasEst = Object.keys(c.nutrition.est||{}).length>0;
+    const manual = !!c.nutrition[f.k+"Manual"];
+    let hint;
+    if(manual && hasEst) hint = `Manual override · <button type="button" class="linkbtn" data-autoreset="${f.k}">use auto from meals</button>`;
+    else if(hasEst) hint = "✨ Auto-summed from your meals";
+    else if(DB.settings.apiKey) hint = "Add or photograph meals — this fills in automatically";
+    else hint = "Add meals + an API key (Settings) to auto-estimate, or type it in";
+    return inline + `<div class="auto-hint">${hint}</div>`;
+  }
   if(f.type==="text") return `<div class="frow"><label for="${id}">${f.label}</label>
     <input id="${id}" class="wide" data-sect="${sect}" data-k="${f.k}" data-t="text" type="text" value="${esc(val??"")}"></div>`;
   if(f.type==="textarea") return `<div class="frow"><label for="${id}">${f.label}</label>
@@ -949,20 +979,10 @@ function fieldHTML(sect, f, val){
       </div>
       <input id="${id}" class="wide" data-sect="${sect}" data-k="${f.k}" data-t="text" type="text"
         placeholder="${f.quick?"…or what did you have?":"What did you have?"}" value="${esc(val??"")}">
-      ${est?`<div class="meal-est">📷 ~${Math.round(est.calories)} kcal · ${Math.round(est.protein_g)} g protein${est.confidence?` · ${esc(est.confidence)} confidence`:""}</div>`:""}
+      ${mealEstimating.has(selectedDate+":"+f.k)
+        ? `<div class="meal-est"><span class="spin"></span>Estimating calories…</div>`
+        : est?`<div class="meal-est">${est.source==="photo"?"📷":"≈"} ~${Math.round(est.calories)} kcal · ${Math.round(est.protein_g)} g protein${est.confidence?` · ${esc(est.confidence)} confidence`:""}</div>`:""}
       </div>`;
-  }
-  if(f.type==="estsum"){
-    const c = ensureCheckin(selectedDate);
-    const est = c.nutrition.est||{};
-    const keys = Object.keys(est);
-    if(!keys.length) return "";
-    const kcal = keys.reduce((s,k)=>s+(+est[k].calories||0),0);
-    const pro = keys.reduce((s,k)=>s+(+est[k].protein_g||0),0);
-    return `<div class="frow"><div class="meal-est-sum">
-      <span class="grow">📷 Photos estimate <b>~${Math.round(kcal)} kcal</b> · <b>${Math.round(pro)} g protein</b></span>
-      <button class="btn secondary small" id="est-apply" type="button">Use as totals</button>
-    </div></div>`;
   }
   if(f.type==="supps") return `<div class="frow"><label>${f.label}</label>
     <div class="suppgrid">${DB.settings.supplements.map(s=>{
@@ -1023,6 +1043,8 @@ function renderCheckin(){
         c2[el.dataset.sect][el.dataset.k] = el.checked;
         el.closest(".supp").classList.toggle("on", el.checked);
         save(); markDone(el.dataset.sect);
+        if(el.dataset.k==="breakfastHuel") submitMeal("breakfast");
+        else if(el.dataset.k==="lunchSalad") submitMeal("lunch");
       });
     } else if(t==="supp"){
       el.addEventListener("change", ()=>{
@@ -1046,9 +1068,18 @@ function renderCheckin(){
       el.addEventListener("change", ()=>{
         const c2 = ensureCheckin(selectedDate);
         const v = el.value.trim();
-        if(t==="number") c2[el.dataset.sect][el.dataset.k] = v==="" ? null : +v;
-        else c2[el.dataset.sect][el.dataset.k] = v;
+        if(t==="number"){
+          c2[el.dataset.sect][el.dataset.k] = v==="" ? null : +v;
+          if(el.dataset.auto){
+            c2.nutrition[el.dataset.k+"Manual"] = v!=="";   // typed = manual; cleared = back to auto
+            if(v==="") recomputeNutrition(c2);
+            save(); renderCheckin(); return;                // re-render so the hint / reset control updates
+          }
+        } else {
+          c2[el.dataset.sect][el.dataset.k] = v;
+        }
         save(); markDone(el.dataset.sect);
+        if(el.dataset.sect==="nutrition" && MEAL_KEYS.includes(el.dataset.k)) submitMeal(el.dataset.k);
       });
     }
   });
@@ -1062,13 +1093,13 @@ function renderCheckin(){
   document.querySelectorAll(".cambtn").forEach(b=>{
     b.onclick = ()=>{ pendingMeal = b.dataset.meal; $("meal-photo-input").click(); };
   });
-  const estApply = $("est-apply");
-  if(estApply) estApply.onclick = ()=>{
-    const c2 = ensureCheckin(selectedDate), est = c2.nutrition.est||{}, keys = Object.keys(est);
-    c2.nutrition.calories = Math.round(keys.reduce((s,k)=>s+(+est[k].calories||0),0));
-    c2.nutrition.protein  = Math.round(keys.reduce((s,k)=>s+(+est[k].protein_g||0),0));
-    save(); render(); toast("Totals updated from photos");
-  };
+  document.querySelectorAll("[data-autoreset]").forEach(b=>{
+    b.onclick = ()=>{
+      const c2 = ensureCheckin(selectedDate);
+      c2.nutrition[b.dataset.autoreset+"Manual"] = false;
+      recomputeNutrition(c2); save(); renderCheckin(); toast("Back to auto from meals");
+    };
+  });
 
   renderQuickLog();
   renderReviewCard();
@@ -1146,9 +1177,7 @@ function downscaleImage(file, maxDim, quality){
     img.src = url;
   });
 }
-async function analyzeMeal(b64){
-  const prompt = `You are a nutrition estimation assistant. Analyze the meal in this photo and estimate its nutrition for the full portion shown. Respond with ONLY a JSON object and nothing else, in exactly this shape:
-{"description":"short name of the meal, e.g. Grilled chicken salad with avocado","calories":<number>,"protein_g":<number>,"carbs_g":<number>,"fat_g":<number>,"confidence":"low|medium|high","notes":"one short caveat, or empty string"}`;
+async function claudeText(messages, maxTokens){
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method:"POST",
     headers:{
@@ -1157,19 +1186,14 @@ async function analyzeMeal(b64){
       "anthropic-version":"2023-06-01",
       "anthropic-dangerous-direct-browser-access":"true"
     },
-    body: JSON.stringify({
-      model: DB.settings.model || "claude-opus-4-8",
-      max_tokens: 700,
-      messages:[{role:"user", content:[
-        {type:"image", source:{type:"base64", media_type:"image/jpeg", data:b64}},
-        {type:"text", text:prompt}
-      ]}]
-    })
+    body: JSON.stringify({ model: DB.settings.model || "claude-opus-4-8", max_tokens: maxTokens||700, messages })
   });
   const data = await res.json().catch(()=>null);
   if(!res.ok) throw new Error((data && data.error && data.error.message) || `HTTP ${res.status}`);
-  if(data.stop_reason==="refusal") throw new Error("The model declined to analyze this image.");
-  const text = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+  if(data.stop_reason==="refusal") throw new Error("The model declined this request.");
+  return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+}
+function parseMealJSON(text){
   let obj;
   try{ obj = JSON.parse(text); }
   catch(e){ const m = text.match(/\{[\s\S]*\}/); if(!m) throw new Error("Couldn't read the analysis — try again"); obj = JSON.parse(m[0]); }
@@ -1178,6 +1202,48 @@ async function analyzeMeal(b64){
   obj.confidence = obj.confidence || "medium";
   obj.notes = obj.notes || "";
   return obj;
+}
+const PHOTO_PROMPT = `You are a nutrition estimation assistant. Analyze the meal in this photo and estimate its nutrition for the full portion shown. Respond with ONLY a JSON object and nothing else, in exactly this shape:
+{"description":"short name of the meal, e.g. Grilled chicken salad with avocado","calories":<number>,"protein_g":<number>,"carbs_g":<number>,"fat_g":<number>,"confidence":"low|medium|high","notes":"one short caveat, or empty string"}`;
+async function analyzeMeal(b64){
+  const text = await claudeText([{role:"user", content:[
+    {type:"image", source:{type:"base64", media_type:"image/jpeg", data:b64}},
+    {type:"text", text:PHOTO_PROMPT}
+  ]}]);
+  return parseMealJSON(text);
+}
+async function analyzeMealText(desc){
+  const prompt = `Estimate the nutrition of this meal, described in text: "${desc}". Assume a typical single portion if quantity is unspecified. Respond with ONLY a JSON object and nothing else, in exactly this shape:
+{"description":"concise meal name","calories":<number>,"protein_g":<number>,"carbs_g":<number>,"fat_g":<number>,"confidence":"low|medium|high","notes":"one short caveat, or empty string"}`;
+  const text = await claudeText([{role:"user", content:prompt}], 500);
+  return parseMealJSON(text);
+}
+/* estimate a typed / quick-tick meal and auto-update day totals */
+async function submitMeal(mealKey){
+  const c = ensureCheckin(selectedDate);
+  const desc = effectiveMealText(c, mealKey);
+  const est = c.nutrition.est || {};
+  if(!desc){                                   // meal cleared → drop its estimate
+    if(est[mealKey]){ delete est[mealKey]; recomputeNutrition(c); save(); if(activeView==="checkin") renderCheckin(); }
+    return;
+  }
+  if(!DB.settings.apiKey) return;              // no key → text still saved, just no estimate
+  const existing = est[mealKey];
+  if(existing && (existing.sourceText===desc || (existing.source==="photo" && existing.description===desc))) return; // already estimated this
+  const flag = selectedDate+":"+mealKey;
+  mealEstimating.add(flag);
+  if(activeView==="checkin") renderCheckin();
+  try{
+    const r = await analyzeMealText(desc);
+    const c2 = ensureCheckin(selectedDate);
+    c2.nutrition.est = c2.nutrition.est || {};
+    c2.nutrition.est[mealKey] = {...r, source:"text", sourceText:desc};
+    recomputeNutrition(c2); save();
+  }catch(e){ toast("Couldn't estimate "+mealLabel(mealKey)+": "+e.message); }
+  finally{
+    mealEstimating.delete(flag);
+    if(activeView==="checkin") renderCheckin();
+  }
 }
 function macroTile(label, val, unit){
   return `<div class="mt"><b>${val}</b><span>${label}${unit?` (${unit})`:""}</span></div>`;
@@ -1221,7 +1287,8 @@ $("m-meal-use").onclick = ()=>{
   const c = ensureCheckin(selectedDate);
   c.nutrition[pendingMeal] = pendingMealResult.description;
   c.nutrition.est = c.nutrition.est || {};
-  c.nutrition.est[pendingMeal] = pendingMealResult;
+  c.nutrition.est[pendingMeal] = {...pendingMealResult, source:"photo"};
+  recomputeNutrition(c);
   save(); $("m-meal").classList.remove("open"); render(); toast("Saved to " + mealLabel(pendingMeal));
 };
 
