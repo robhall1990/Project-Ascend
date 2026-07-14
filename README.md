@@ -8,9 +8,9 @@ Everything lives on your phone. No accounts, no server, no tracking.
 
 - **Dashboard** — today's High Performance Score with per-component breakdown, current streak, last-7-days trend, weekly average, and at-a-glance tiles (weight, body fat %, sleep, training, calories, protein, alcohol, mood).
 - **Daily check-in** across six sections:
-  - **Physical** — weight, body fat, sleep, energy, mood, alcohol units, water, steps, supplements tick-boxes
+  - **Physical** — weight, body fat, sleep, energy, mood, alcohol (tap pints of beer / glasses of wine / double spirits — UK units are calculated for you), water, steps, supplements tick-boxes
   - **Nutrition** — meals split into Breakfast / Lunch / Dinner / Snacks. The day's **Calories and Protein totals auto-populate** from your meals: one-tap Huel & Salad quick-ticks use built-in stock values (no API call), while 📷 photos and typed meals are estimated by Claude. Manual override with reset-to-auto. Also: fruit & veg portions, sugar cravings, hunger
-  - **Training** — sessions (run / bike / swim / gym / recovery, defaulting to Run) with time, distance, calories, avg heart rate, RPE and notes; **Garmin file import** (TCX / GPX)
+  - **Training** — sessions (run / bike / swim / gym / recovery, defaulting to Run) with time, distance, calories, avg heart rate, RPE and notes; **intervals.icu sync** (one tap pulls the day's activities) and **Garmin file import** (TCX / GPX)
   - **Family** — present today, quality-time minutes, phone-free evening, played with children, date night, journal
   - **Career** — hours worked, biggest win, deep-work minutes, leadership action, AI learning, strategic-vs-operational %
   - **Mind** — gratitude, biggest stress, meditation, reading, screen time, overall mood
@@ -44,9 +44,13 @@ Every meal you submit contributes to the day's Calories and Protein totals, whic
 
 Priority per meal is typed text > photo > quick-tick stock. The day's Calories/Protein fields show "✨ Auto-summed from your meals"; type into either field to override manually, with a "use auto from meals" link to reset. Photo and typed-text estimation use your Claude API key (set in Settings); the Huel/Salad quick-ticks work with no key at all. Nothing is sent unless you submit a meal, and nothing is stored server-side.
 
-## Garmin
+## Training data: intervals.icu & Garmin
 
-Garmin has no browser-usable public API (their Health/Activity API is a server-side partner program requiring OAuth signing and approval), so a fully serverless PWA can't auto-sync live. What the app **does** support is **file import**: in Garmin Connect open an activity → ⚙ → **Export to TCX** (or GPX), then import that file — type, time, distance, calories and heart rate fill in automatically. If live auto-sync ever becomes a must-have, it would need a small backend service; happy to add that as a separate piece.
+**intervals.icu sync** — the preferred path. intervals.icu already aggregates your activities from Garmin, Strava, etc., and offers a simple API-key. Add your API key (intervals.icu → Settings → Developer) and Athlete ID in the app's Settings, then tap **⟳ Sync intervals.icu** in the Training check-in to pull that day's activities (type, time, distance, calories, heart rate), de-duplicated so re-syncing is safe.
+
+> ⚠️ **CORS caveat:** the app calls intervals.icu directly from your browser. Whether that succeeds depends on intervals.icu sending permissive CORS headers, which couldn't be verified from the build sandbox (outbound access to intervals.icu was blocked there). If the browser call is refused, the app tells you and you can fall back to file import below. If it turns out CORS is blocked for good, the fix is a tiny proxy — happy to add one.
+
+**Garmin file import** — the always-works fallback. Garmin itself has no browser-usable public API (their Health/Activity API is a server-side partner program), so there's no live Garmin auto-sync from a serverless PWA. Instead: in Garmin Connect open an activity → ⚙ → **Export to TCX** (or GPX) and import that file — the same fields fill in automatically.
 
 ## Privacy
 

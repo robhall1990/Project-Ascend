@@ -127,6 +127,17 @@
   .supp.on{border-color:var(--accent); color:var(--text)}
   .boolbtn{background:var(--card2); border:1px solid var(--line); color:var(--muted); border-radius:999px; padding:7px 16px; font-size:13px; font-weight:700}
   .boolbtn.on{background:var(--green); color:#12131f; border-color:transparent}
+  .drinkrow{display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line)}
+  .drinkrow:last-of-type{border-bottom:none}
+  .drinkinfo{display:flex; flex-direction:column}
+  .drinkinfo .dl{font-size:14px}
+  .drinkinfo .ds{font-size:11px; color:var(--muted)}
+  .stepper{display:flex; align-items:center; gap:14px}
+  .stepbtn{width:36px; height:36px; border-radius:10px; background:var(--card2); border:1px solid var(--line); color:var(--text); font-size:20px; line-height:1}
+  .stepbtn:active{transform:scale(.92)}
+  .stepval{min-width:18px; text-align:center; font-weight:700; font-variant-numeric:tabular-nums}
+  .drinktotal{text-align:right; font-size:13px; color:var(--muted); margin-top:8px}
+  .drinktotal b{color:var(--text); font-size:15px}
   .meal-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px}
   .meal-actions{display:flex; align-items:center; gap:6px}
   .cambtn{background:var(--card2); border:1px solid var(--line); border-radius:999px; width:38px; height:34px; font-size:16px}
@@ -440,6 +451,17 @@
     </div>
 
     <div class="card">
+      <h2>intervals.icu sync</h2>
+      <div class="small muted">Pulls your training activities (which intervals.icu already collects from Garmin, Strava, etc.). Get your API key at intervals.icu → <b>Settings → Developer</b>. Your Athlete ID is the <code class="k">i…</code> in your intervals.icu URL.</div>
+      <label class="f">API key</label>
+      <input id="set-icu-key" type="password" placeholder="your intervals.icu API key" autocomplete="off">
+      <label class="f">Athlete ID</label>
+      <input id="set-icu-athlete" placeholder="e.g. i123456">
+      <button class="btn small" id="set-save-icu" style="margin-top:10px">Save intervals.icu</button>
+      <div class="small muted" style="margin-top:8px">Then use <b>⟳ Sync intervals.icu</b> in the Training check-in. Note: this calls intervals.icu directly from your browser — if it's blocked by CORS, use the Garmin file import instead.</div>
+    </div>
+
+    <div class="card">
       <h2>Quick-log activities</h2>
       <div id="type-list"></div>
       <button class="btn secondary small" id="type-add" style="margin-top:10px">＋ Add activity</button>
@@ -656,10 +678,17 @@ const HPS_LABELS = {sleep:"Sleep", training:"Training", nutrition:"Nutrition", a
 function freshDB(){
   return {
     settings:{name:"", mission:"", apiKey:"", model:"claude-opus-4-8",
-      hpsWeights:{...DEFAULT_WEIGHTS}, targets:{...DEFAULT_TARGETS}, supplements:[...DEFAULT_SUPPS]},
+      hpsWeights:{...DEFAULT_WEIGHTS}, targets:{...DEFAULT_TARGETS}, supplements:[...DEFAULT_SUPPS],
+      intervalsKey:"", intervalsAthlete:""},
     activityTypes: JSON.parse(JSON.stringify(DEFAULT_TYPES)),
     logs:[], metrics:[], metricEntries:[], checkins:{}, reviews:{}
   };
+}
+/* UK alcohol units per drink (typical): pint of beer ~4%, 175ml wine 12%, 50ml double spirit 40% */
+const ALCOHOL_UNITS = {beer:2.3, wine:2.1, spirits:2.0};
+function alcoholUnits(d){
+  if(!d) return 0;
+  return Math.round((((d.beer||0)*ALCOHOL_UNITS.beer)+((d.wine||0)*ALCOHOL_UNITS.wine)+((d.spirits||0)*ALCOHOL_UNITS.spirits))*10)/10;
 }
 let DB;
 try { DB = JSON.parse(localStorage.getItem(KEY)) || freshDB(); } catch(e){ DB = freshDB(); }
@@ -670,6 +699,8 @@ try { DB = JSON.parse(localStorage.getItem(KEY)) || freshDB(); } catch(e){ DB = 
   if(!DB.settings.targets) DB.settings.targets = {...DEFAULT_TARGETS};
   if(!DB.settings.supplements) DB.settings.supplements = [...DEFAULT_SUPPS];
   if(!DB.settings.model) DB.settings.model = "claude-opus-4-8";
+  if(DB.settings.intervalsKey===undefined) DB.settings.intervalsKey = "";
+  if(DB.settings.intervalsAthlete===undefined) DB.settings.intervalsAthlete = "";
   DB.checkins = DB.checkins || {};
   DB.reviews = DB.reviews || {};
   DB.logs = DB.logs || []; DB.metrics = DB.metrics || []; DB.metricEntries = DB.metricEntries || [];
@@ -728,7 +759,7 @@ const CHECKIN_SCHEMA = [
     {k:"sleepHours", label:"Sleep (hours)",      type:"number", step:"0.25"},
     {k:"energy",     label:"Energy (1–10)",      type:"scale"},
     {k:"mood",       label:"Mood (1–10)",        type:"scale"},
-    {k:"alcohol",    label:"Alcohol (units)",    type:"number", step:"0.5"},
+    {k:"alcohol",    label:"Alcohol",            type:"drinks"},
     {k:"water",      label:"Water (litres)",     type:"number", step:"0.1"},
     {k:"steps",      label:"Steps",              type:"number", step:"1"},
     {k:"supplements",label:"Supplements taken",  type:"supps"},
@@ -962,6 +993,25 @@ function fieldHTML(sect, f, val){
   if(f.type==="pct") return `<div class="frow"><label for="${id}">${f.label}</label>
     <span class="rangewrap" style="max-width:none"><input id="${id}" data-sect="${sect}" data-k="${f.k}" data-t="scale" type="range" min="0" max="100" step="5" value="${val??50}" ${val==null?'data-unset="1"':''}>
     <output>${val!=null?val+"%":"–"}</output></span></div>`;
+  if(f.type==="drinks"){
+    const c = ensureCheckin(selectedDate);
+    const d = c.physical.alcoholDrinks || {beer:0, wine:0, spirits:0};
+    const row = (dk, emoji, label) => `
+      <div class="drinkrow">
+        <div class="drinkinfo"><span class="dl">${emoji} ${label}</span><span class="ds">${ALCOHOL_UNITS[dk]} units each</span></div>
+        <div class="stepper">
+          <button class="stepbtn" data-drink="${dk}" data-dir="-1" type="button" aria-label="one fewer">−</button>
+          <span class="stepval" id="drink-${dk}">${d[dk]||0}</span>
+          <button class="stepbtn" data-drink="${dk}" data-dir="1" type="button" aria-label="one more">+</button>
+        </div>
+      </div>`;
+    return `<div class="frow"><label>${f.label}</label>
+      ${row("beer","🍺","Pint of beer")}
+      ${row("wine","🍷","Glass of wine")}
+      ${row("spirits","🥃","Double spirit")}
+      <div class="drinktotal">Total: <b id="alc-total">${alcoholUnits(d)}</b> units</div>
+    </div>`;
+  }
   if(f.type==="bool") return `<div class="frow inline"><label>${f.label}</label>
     <button class="boolbtn ${val?"on":""}" data-sect="${sect}" data-k="${f.k}" data-t="bool">${val?"Yes ✓":"No"}</button></div>`;
   if(f.type==="meal"){
@@ -1008,9 +1058,10 @@ function renderCheckin(){
         </div>`).join("") : `<div class="empty">No sessions yet — rest day or log one below.</div>`)
         + `<div class="btnrow" style="margin-top:8px">
              <button class="btn secondary small grow" id="sess-add">＋ Add session</button>
-             <button class="btn secondary small grow" id="sess-import">📁 Import Garmin file</button>
+             <button class="btn small grow" id="sess-icu">⟳ Sync intervals.icu</button>
            </div>
-           <div class="small muted" style="margin-top:6px">In Garmin Connect, open an activity → ⚙ → <b>Export to TCX</b> (or GPX), then import it here. Distance, time, calories &amp; heart rate fill in automatically.</div>`;
+           <button class="btn secondary small" id="sess-import" style="margin-top:8px">📁 Import Garmin file (.tcx / .gpx)</button>
+           <div class="small muted" style="margin-top:6px"><b>intervals.icu</b> pulls this day's activities automatically (add your key in Settings). Or export any activity from Garmin Connect → ⚙ → <b>Export to TCX</b> and import the file.</div>`;
     } else {
       body = S.fields.map(f=>fieldHTML(S.key, f, S.key==="physical"&&f.k==="supplements" ? c.physical.supplements : (c[S.key]||{})[f.k])).join("");
     }
@@ -1086,11 +1137,25 @@ function renderCheckin(){
   if(addBtn) addBtn.onclick = ()=>openSessModal(null);
   const impBtn = $("sess-import");
   if(impBtn) impBtn.onclick = ()=>$("workout-file-input").click();
+  const icuBtn = $("sess-icu");
+  if(icuBtn) icuBtn.onclick = ()=>syncIntervals(selectedDate);
   document.querySelectorAll(".sess-edit").forEach(b=>{
     b.onclick = ()=>openSessModal(b.closest(".sess").dataset.id);
   });
   document.querySelectorAll(".cambtn").forEach(b=>{
     b.onclick = ()=>{ pendingMeal = b.dataset.meal; $("meal-photo-input").click(); };
+  });
+  document.querySelectorAll(".stepbtn").forEach(b=>{
+    b.onclick = ()=>{
+      const c2 = ensureCheckin(selectedDate);
+      c2.physical.alcoholDrinks = c2.physical.alcoholDrinks || {beer:0, wine:0, spirits:0};
+      const dk = b.dataset.drink;
+      c2.physical.alcoholDrinks[dk] = Math.max(0, (c2.physical.alcoholDrinks[dk]||0) + (+b.dataset.dir));
+      c2.physical.alcohol = alcoholUnits(c2.physical.alcoholDrinks);   // keep units in sync for HPS/analytics
+      $("drink-"+dk).textContent = c2.physical.alcoholDrinks[dk];
+      $("alc-total").textContent = c2.physical.alcohol;
+      save(); markDone("physical");
+    };
   });
   document.querySelectorAll("[data-autoreset]").forEach(b=>{
     b.onclick = ()=>{
@@ -1310,10 +1375,10 @@ $("m-meal-use").onclick = ()=>{
 function byLocal(root, name){ return [...root.getElementsByTagName("*")].filter(e=>e.localName===name); }
 function mapSport(s){
   s = (s||"").toLowerCase();
-  if(s.includes("run")) return "Run";
-  if(s.includes("bik")||s.includes("cycl")) return "Bike";
+  if(s.includes("run")) return "Run";                                   // Run, VirtualRun, TrailRun
+  if(s.includes("ride")||s.includes("bik")||s.includes("cycl")) return "Bike"; // Ride, VirtualRide, EBikeRide
   if(s.includes("swim")) return "Swim";
-  if(s.includes("strength")||s.includes("gym")||s.includes("cardio")||s.includes("fitness")||s.includes("training")) return "Gym";
+  if(s.includes("strength")||s.includes("weight")||s.includes("gym")||s.includes("workout")||s.includes("cardio")||s.includes("fitness")||s.includes("training")) return "Gym";
   if(s.includes("walk")||s.includes("hik")) return "Recovery";
   return "Run";
 }
@@ -1385,6 +1450,50 @@ async function parseWorkoutFile(file){
   if(byLocal(doc,"gpx").length || name.endsWith(".gpx")) return parseGPX(doc);
   throw new Error("Unrecognised file — export as TCX or GPX from Garmin Connect.");
 }
+/* ============================ intervals.icu sync ============================ */
+function icuActivityToSession(a){
+  return {
+    id: uid(), extId: "icu:"+a.id,
+    type: mapSport(a.type),
+    durationMin: a.moving_time ? Math.round(a.moving_time/60) : (a.elapsed_time ? Math.round(a.elapsed_time/60) : null),
+    distanceKm: a.distance ? +(a.distance/1000).toFixed(2) : null,
+    calories: a.calories!=null ? Math.round(a.calories) : (a.icu_calories!=null ? Math.round(a.icu_calories) : null),
+    avgHr: a.average_heartrate!=null ? Math.round(a.average_heartrate) : null,
+    maxHr: a.max_heartrate!=null ? Math.round(a.max_heartrate) : null,
+    rpe: a.icu_rpe || null,
+    notes: (a.name || a.type || "Activity") + " · intervals.icu"
+  };
+}
+async function syncIntervals(date){
+  const key = (DB.settings.intervalsKey||"").trim(), athlete = (DB.settings.intervalsAthlete||"").trim();
+  if(!key || !athlete){ toast("Add your intervals.icu API key & Athlete ID in Settings"); switchView("settings"); return; }
+  toast("Syncing intervals.icu…");
+  const url = `https://intervals.icu/api/v1/athlete/${encodeURIComponent(athlete)}/activities?oldest=${date}&newest=${date}`;
+  let list;
+  try{
+    const res = await fetch(url, {headers:{"Authorization":"Basic "+btoa("API_KEY:"+key)}});
+    if(res.status===401 || res.status===403){ toast("intervals.icu rejected the key — check your API key and Athlete ID"); return; }
+    if(!res.ok){ toast("intervals.icu error: HTTP "+res.status); return; }
+    list = await res.json();
+  }catch(e){
+    toast("Couldn't reach intervals.icu from the browser (likely CORS). Use the Garmin TCX/GPX import instead.");
+    return;
+  }
+  if(!Array.isArray(list)){ toast("Unexpected response from intervals.icu"); return; }
+  const c = ensureCheckin(date);
+  let added=0, skipped=0;
+  list.forEach(a=>{
+    const extId = "icu:"+a.id;
+    if(c.training.some(s=>s.extId===extId)){ skipped++; return; }
+    c.training.push(icuActivityToSession(a));
+    added++;
+  });
+  save(); render();
+  toast(added
+    ? `Imported ${added} activit${added===1?"y":"ies"}${skipped?` (${skipped} already synced)`:""}`
+    : (skipped ? "Already up to date" : "No intervals.icu activities on this day"));
+}
+
 $("workout-file-input").addEventListener("change", async e=>{
   const file = e.target.files[0]; e.target.value = "";
   if(!file) return;
@@ -1912,6 +2021,8 @@ function renderSettings(){
   $("set-mission").value = DB.settings.mission||"";
   $("set-apikey").value = DB.settings.apiKey||"";
   $("set-model").value = DB.settings.model||"claude-opus-4-8";
+  $("set-icu-key").value = DB.settings.intervalsKey||"";
+  $("set-icu-athlete").value = DB.settings.intervalsAthlete||"";
   $("set-supps").value = DB.settings.supplements.join(", ");
   const W = DB.settings.hpsWeights;
   $("weights-table").innerHTML = Object.keys(DEFAULT_WEIGHTS).map(k=>
@@ -1971,6 +2082,11 @@ $("set-save-ai").onclick = ()=>{
   DB.settings.apiKey = $("set-apikey").value.trim();
   DB.settings.model = $("set-model").value;
   save(); toast(DB.settings.apiKey ? "AI coach enabled" : "AI settings saved");
+};
+$("set-save-icu").onclick = ()=>{
+  DB.settings.intervalsKey = $("set-icu-key").value.trim();
+  DB.settings.intervalsAthlete = $("set-icu-athlete").value.trim().replace(/^athlete\//i,"");
+  save(); toast(DB.settings.intervalsKey ? "intervals.icu connected" : "intervals.icu settings saved");
 };
 $("type-add").onclick = ()=>{
   $("m-type-emoji").value=""; $("m-type-name").value="";
