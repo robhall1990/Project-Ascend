@@ -142,10 +142,20 @@ export interface FoodItem {
   name: string
   /** Per-100g macros. */
   per100: { calories: number; protein: number; carbs: number; fat: number }
+  /** Typical serving in grams, used for one-tap logging. */
+  defaultGrams: number
 }
 
+/**
+ * A saved combination logged in one tap. Stored as aggregate macros (summed
+ * from whatever entries created it) so repeat meals log instantly and Phase 8
+ * can rank them by protein density.
+ */
 export interface Meal {
   id: string
   name: string
-  items: Array<{ foodItemId: string; grams: number }>
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
 }

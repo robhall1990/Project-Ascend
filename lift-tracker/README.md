@@ -37,6 +37,13 @@ Built phase by phase — see the build brief.
   baseline / endurance adds carbs by minutes × intensity / rest trims ~15%).
   Prominent protein-remaining ring plus calorie/carb/fat bars; editable stats
   panel with bodyweight logging. Remaining = target until food logging lands.
+- **Phase 6 — Food logging** ✅
+  Log food into meal slots (pre/post-training, breakfast/lunch/dinner/snack) via
+  a bottom sheet: one-tap saved foods (per-100g, adjustable grams) and saved
+  meals, or manual entry with a "save as reusable" toggle. Running totals update
+  the Fuel rings/bars live; entries are listed per slot and deletable; a slot's
+  entries can be saved as a one-tap Meal. Over-target reads "0 left" (never a
+  failure state). Photo estimation intentionally deferred.
 
 ## Develop
 

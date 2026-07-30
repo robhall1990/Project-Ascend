@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import type { DayType, EnduranceIntensity, GoalMode, Settings } from '../types'
+import type { DayType, EnduranceIntensity, FoodEntry, GoalMode, MealSlot, Settings } from '../types'
 import { todayISO } from '../lib/schedule'
 import {
   GOAL_LABEL,
@@ -10,8 +10,10 @@ import {
   setDayType,
   setEndurance,
 } from '../lib/nutrition'
+import { deleteEntry, saveMealFromEntries } from '../lib/foodRepo'
 import { ProteinRing, MacroBar } from './MacroRings'
 import { StatsForm } from './StatsForm'
+import { FoodLogSheet, SLOT_LABEL } from './FoodLogSheet'
 
 const DAY_TYPES: DayType[] = ['lift', 'endurance', 'rest']
 const DAY_TYPE_LABEL: Record<DayType, string> = {
@@ -21,6 +23,16 @@ const DAY_TYPE_LABEL: Record<DayType, string> = {
 }
 const GOALS: GoalMode[] = ['lean-gain', 'recomposition', 'maintenance']
 const INTENSITIES: EnduranceIntensity[] = ['easy', 'moderate', 'hard']
+const SLOT_ORDER: MealSlot[] = ['pre-training', 'breakfast', 'lunch', 'post-training', 'dinner', 'snack']
+
+/** Guess a meal slot from the time of day, to pre-select the logging sheet. */
+function guessSlot(): MealSlot {
+  const h = new Date().getHours()
+  if (h < 11) return 'breakfast'
+  if (h < 15) return 'lunch'
+  if (h < 21) return 'dinner'
+  return 'snack'
+}
 
 const COLOR = {
   protein: '#22c55e',
@@ -37,6 +49,7 @@ export function FuelScreen({ settings }: { settings: Settings }) {
   const entries = useLiveQuery(() => db.foodEntries.where('date').equals(today).toArray(), [today], [])
 
   const [editingStats, setEditingStats] = useState(false)
+  const [sheetSlot, setSheetSlot] = useState<MealSlot | null>(null)
 
   if (!stats || !bw) return <div className="app">Loading…</div>
 
@@ -113,6 +126,17 @@ export function FuelScreen({ settings }: { settings: Settings }) {
             <MacroBar label="Fat" consumed={consumed.fat} target={target.fat} unit="g" color={COLOR.fat} />
           </div>
 
+          <button className="cta" onClick={() => setSheetSlot(guessSlot())}>
+            ＋ Log food
+          </button>
+
+          <FoodLog
+            entries={entries ?? []}
+            onAddToSlot={(s) => setSheetSlot(s)}
+            onDelete={(id) => deleteEntry(id)}
+            onSaveMeal={(name, es) => saveMealFromEntries(name, es)}
+          />
+
           {/* Goal + rationale */}
           <div className="goal-row">
             <span className="goal-label">Goal</span>
@@ -137,6 +161,72 @@ export function FuelScreen({ settings }: { settings: Settings }) {
           </p>
         </>
       )}
+
+      {sheetSlot && (
+        <FoodLogSheet date={today} initialSlot={sheetSlot} onClose={() => setSheetSlot(null)} />
+      )}
+    </div>
+  )
+}
+
+function FoodLog({
+  entries,
+  onAddToSlot,
+  onDelete,
+  onSaveMeal,
+}: {
+  entries: FoodEntry[]
+  onAddToSlot: (slot: MealSlot) => void
+  onDelete: (id: string) => void
+  onSaveMeal: (name: string, entries: FoodEntry[]) => void
+}) {
+  const bySlot = SLOT_ORDER.map((slot) => ({
+    slot,
+    items: entries.filter((e) => e.slot === slot).sort((a, b) => a.createdAt - b.createdAt),
+  })).filter((g) => g.items.length > 0)
+
+  if (bySlot.length === 0) {
+    return <p className="fuel-empty">Nothing logged yet today. Tap ＋ Log food to start.</p>
+  }
+
+  function saveAsMeal(slot: MealSlot, items: FoodEntry[]) {
+    const name = prompt(`Name this meal (${SLOT_LABEL[slot]})`)?.trim()
+    if (name) onSaveMeal(name, items)
+  }
+
+  return (
+    <div className="food-log">
+      {bySlot.map(({ slot, items }) => (
+        <div className="food-slot" key={slot}>
+          <div className="food-slot-head">
+            <span className="food-slot-title">{SLOT_LABEL[slot]}</span>
+            <div className="food-slot-actions">
+              {items.length > 1 && (
+                <button className="mini-btn" onClick={() => saveAsMeal(slot, items)}>
+                  Save as meal
+                </button>
+              )}
+              <button className="mini-btn" onClick={() => onAddToSlot(slot)}>
+                ＋
+              </button>
+            </div>
+          </div>
+          {items.map((e) => (
+            <div className="food-entry" key={e.id}>
+              <div className="food-entry-main">
+                <span className="food-entry-name">{e.name}</span>
+                {e.portion && <span className="food-entry-portion"> · {e.portion}</span>}
+                <div className="food-entry-macros">
+                  {e.calories} kcal · P{e.protein} C{e.carbs} F{e.fat}
+                </div>
+              </div>
+              <button className="del-x" aria-label="Delete entry" onClick={() => onDelete(e.id)}>
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
   )
 }
