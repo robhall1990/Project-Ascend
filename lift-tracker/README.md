@@ -58,6 +58,13 @@ Built phase by phase — see the build brief.
   hitting protein is the goal) and ranked by protein density, each one-tap
   loggable. (Herbi/Mealio was checked as a suggestion source but is a family
   dinner planner with no per-recipe macros, so it isn't reused.)
+- **Phase 9 — Combined progress view** ✅
+  The payoff screen: bodyweight, a strength index (sum of the four main lifts'
+  estimated 1RM) and weekly-average protein, plotted as three stacked mini-charts
+  sharing one weekly x-axis over the 20 weeks — so the relationship between eating
+  enough, lifting consistently and getting stronger is visible in one place.
+
+All nine phases from the build brief are complete.
 
 ## Develop
 

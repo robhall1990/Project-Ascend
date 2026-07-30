@@ -10,7 +10,9 @@ import {
 } from 'recharts'
 import type { Exercise, WeightUnit } from '../types'
 import type { HistorySession, TrendRow } from '../lib/progression'
+import type { CombinedPoint } from '../lib/combined'
 import { parseISODate } from '../lib/schedule'
+import { round1, toDisplayWeight } from '../lib/units'
 
 // Validated categorical palette (dark surface #1e293b): blue / orange / aqua /
 // yellow in adjacency-safe order — see dataviz validation.
@@ -96,6 +98,89 @@ export function E1RMChart({
         ))}
       </LineChart>
     </ResponsiveContainer>
+  )
+}
+
+/**
+ * The payoff view: bodyweight, strength (sum of main-lift e1RM) and weekly
+ * average protein as three stacked mini-charts sharing one weekly x-axis.
+ * Three separate single-scale panels avoid a forbidden dual-axis chart while
+ * keeping real units and vertical alignment for eyeballing the relationship.
+ */
+export function CombinedProgressCharts({
+  points,
+  unit,
+}: {
+  points: CombinedPoint[]
+  unit: WeightUnit
+}) {
+  if (points.length === 0) {
+    return (
+      <p className="chart-empty">
+        Log training, bodyweight and food over a few weeks to see how they move together.
+      </p>
+    )
+  }
+  const maxWeek = points[points.length - 1].week
+  const data = points.map((p) => ({
+    week: p.week,
+    bodyweight: p.bodyweightKg != null ? round1(toDisplayWeight(p.bodyweightKg, unit)) : undefined,
+    strength: p.strengthKg != null ? Math.round(toDisplayWeight(p.strengthKg, unit)) : undefined,
+    protein: p.proteinG,
+  }))
+
+  const panels: Array<{ key: 'bodyweight' | 'strength' | 'protein'; label: string; color: string; unit: string }> = [
+    { key: 'bodyweight', label: 'Bodyweight', color: '#3987e5', unit },
+    { key: 'strength', label: 'Strength (Σ main-lift e1RM)', color: '#c98500', unit },
+    { key: 'protein', label: 'Protein (weekly avg/day)', color: '#22c55e', unit: 'g' },
+  ]
+
+  return (
+    <div className="combined">
+      {panels.map((panel, i) => (
+        <div className="combined-panel" key={panel.key}>
+          <div className="combined-label" style={{ color: panel.color }}>
+            {panel.label}
+          </div>
+          <ResponsiveContainer width="100%" height={i === panels.length - 1 ? 128 : 110}>
+            <LineChart data={data} margin={{ top: 6, right: 14, bottom: i === panels.length - 1 ? 4 : 0, left: 6 }}>
+              <CartesianGrid stroke={GRID} vertical={false} />
+              <XAxis
+                dataKey="week"
+                type="number"
+                domain={[1, maxWeek]}
+                allowDecimals={false}
+                tickCount={Math.min(maxWeek, 10)}
+                stroke={AXIS}
+                tick={i === panels.length - 1 ? { fill: AXIS, fontSize: 11 } : false}
+                height={i === panels.length - 1 ? 20 : 0}
+                tickFormatter={(w) => `wk ${w}`}
+              />
+              <YAxis
+                stroke={AXIS}
+                tick={{ fill: AXIS, fontSize: 11 }}
+                width={44}
+                domain={['auto', 'auto']}
+              />
+              <Tooltip
+                contentStyle={TOOLTIP_STYLE}
+                labelFormatter={(w) => `Week ${w}`}
+                formatter={(value: number) => [`${value} ${panel.unit}`, panel.label]}
+              />
+              <Line
+                type="monotone"
+                dataKey={panel.key}
+                stroke={panel.color}
+                strokeWidth={2}
+                dot={{ r: 3, strokeWidth: 0, fill: panel.color }}
+                activeDot={{ r: 5 }}
+                connectNulls
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      ))}
+    </div>
   )
 }
 

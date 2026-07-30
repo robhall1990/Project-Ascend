@@ -5,7 +5,8 @@ import type { ProgramPhase, Settings } from '../types'
 import { DAY_TITLES } from '../data/program'
 import { phaseForWeek, programPosition } from '../lib/schedule'
 import { exerciseHistory, mainLiftsTrend } from '../lib/progression'
-import { E1RMChart, WeightHistoryChart, SERIES_COLOR } from './charts'
+import { combinedProgress } from '../lib/combined'
+import { E1RMChart, WeightHistoryChart, CombinedProgressCharts, SERIES_COLOR } from './charts'
 
 interface Props {
   settings: Settings
@@ -20,6 +21,11 @@ export function ProgressScreen({ settings, phases }: Props) {
 
   const exercises = useLiveQuery(() => db.exercises.orderBy('order').toArray(), [], [])
   const trend = useLiveQuery(() => mainLiftsTrend(), [], emptyTrend)
+  const combined = useLiveQuery(
+    () => combinedProgress(settings.programStartDate),
+    [settings.programStartDate],
+    [],
+  )
 
   const [exId, setExId] = useState('d1-bench')
   const history = useLiveQuery(() => exerciseHistory(exId), [exId], [])
@@ -38,6 +44,16 @@ export function ProgressScreen({ settings, phases }: Props) {
           ? `Program starts in ${pos.daysUntilStart} days`
           : `Week ${pos.week} of 20 · ${currentPhase?.name ?? ''} · ${pos.weeksRemaining} weeks to year-end`}
       </p>
+
+      {/* The payoff: weight · strength · protein together */}
+      <section className="chart-card">
+        <h2 className="chart-title">Weight · Strength · Protein</h2>
+        <p className="chart-subtitle">
+          Eating enough and lifting consistently should pull strength up together — here they are on
+          one timeline.
+        </p>
+        <CombinedProgressCharts points={combined ?? []} unit={settings.weightUnit} />
+      </section>
 
       {/* Estimated 1RM trend */}
       <section className="chart-card">
