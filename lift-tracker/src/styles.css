@@ -759,3 +759,217 @@ body,
   padding: 3px 7px;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- Fuel screen ---- */
+.setup-banner {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: var(--accent);
+  border-radius: 12px;
+  padding: 11px 13px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  margin-bottom: 14px;
+  cursor: pointer;
+}
+
+.segmented {
+  display: flex;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 14px;
+}
+.segmented button {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px 0;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.segmented button.active {
+  background: var(--accent-strong);
+  color: #fff;
+}
+.segmented.small button {
+  font-size: 12.5px;
+  padding: 7px 0;
+}
+
+.endurance-controls {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+.endurance-controls label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+.endurance-controls input[type='range'],
+.stats-form input[type='range'] {
+  width: 100%;
+  margin-top: 8px;
+  accent-color: var(--accent);
+}
+
+.fuel-hero {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0 18px;
+}
+.protein-ring {
+  position: relative;
+  width: 168px;
+  height: 168px;
+}
+.protein-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.protein-remaining {
+  font-size: 46px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+}
+.protein-remaining-unit {
+  font-size: 12px;
+  color: #22c55e;
+  font-weight: 700;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.protein-target {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.macro-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.macro-bar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+.macro-bar-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.macro-bar-remaining {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.macro-bar-unit {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+.macro-bar-track {
+  height: 8px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.macro-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+.macro-bar-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.goal-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.goal-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.goal-row .segmented {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.fuel-rationale {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ---- Stats form ---- */
+.stats-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.stats-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.stats-grid label.span-2 {
+  grid-column: 1 / -1;
+}
+.stats-grid input,
+.stats-grid select {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 9px 8px;
+  font-size: 15px;
+}
+.stats-grid input[type='range'] {
+  padding: 0;
+}
+.stats-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}

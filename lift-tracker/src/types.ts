@@ -74,3 +74,78 @@ export interface SetLog {
   reps: number
   rpe?: number
 }
+
+// ---- Nutrition ---------------------------------------------------------------
+
+export type Sex = 'male' | 'female'
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very-active'
+export type DayType = 'lift' | 'endurance' | 'rest'
+export type EnduranceIntensity = 'easy' | 'moderate' | 'hard'
+export type MealSlot =
+  | 'pre-training'
+  | 'post-training'
+  | 'breakfast'
+  | 'lunch'
+  | 'dinner'
+  | 'snack'
+
+/** Standing physiological stats used to compute macro targets. */
+export interface UserStats {
+  id: 'singleton'
+  heightCm: number
+  age: number
+  sex: Sex
+  activity: ActivityLevel
+  /** Protein target in grams per kg bodyweight (1.6–2.2; default 1.8). */
+  proteinPerKg: number
+  /** Whether the user has replaced the seeded example figures with their own. */
+  configured: boolean
+}
+
+/** Bodyweight logged over time (stored in kg regardless of display unit). */
+export interface BodyweightLog {
+  id: string
+  date: string
+  weightKg: number
+  createdAt: number
+}
+
+/**
+ * Per-day nutrition context: the day type (which flexes carbs) plus any manual
+ * override of the computed target. Keyed by date.
+ */
+export interface DayNutrition {
+  date: string
+  dayType: DayType
+  enduranceMinutes?: number
+  enduranceIntensity?: EnduranceIntensity
+  /** Manual override of the computed target for this date. */
+  override?: { calories: number; protein: number; carbs: number; fat: number }
+}
+
+// Declared for later nutrition phases (food logging, meals).
+export interface FoodEntry {
+  id: string
+  date: string
+  slot: MealSlot
+  name: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  portion?: string
+  createdAt: number
+}
+
+export interface FoodItem {
+  id: string
+  name: string
+  /** Per-100g macros. */
+  per100: { calories: number; protein: number; carbs: number; fat: number }
+}
+
+export interface Meal {
+  id: string
+  name: string
+  items: Array<{ foodItemId: string; grams: number }>
+}

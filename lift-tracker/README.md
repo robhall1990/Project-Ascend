@@ -29,6 +29,14 @@ Built phase by phase — see the build brief.
   Recharts estimated-1RM trend for the four main lifts (colourblind-validated
   palette, legend), and a per-exercise history view — top-set weight over time
   plus a session-by-session list of the actual sets logged.
+- **Phase 5 — Macro targets engine** ✅
+  A Fuel tab computing daily macro targets in-app from your own stats: Mifflin–St
+  Jeor BMR × activity = maintenance; goal mode (lean gain +10% / recomp /
+  maintenance) as a choice; protein 1.6–2.2 g/kg (default 1.8); fat 25% of
+  calories (0.8 g/kg floor); carbs the remainder, flexing by day type (lift
+  baseline / endurance adds carbs by minutes × intensity / rest trims ~15%).
+  Prominent protein-remaining ring plus calorie/carb/fat bars; editable stats
+  panel with bodyweight logging. Remaining = target until food logging lands.
 
 ## Develop
 

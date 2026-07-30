@@ -5,8 +5,9 @@ import { SessionLogView } from './components/SessionLogView'
 import { HistoryView } from './components/HistoryView'
 import { TodayScreen } from './components/TodayScreen'
 import { ProgressScreen } from './components/ProgressScreen'
+import { FuelScreen } from './components/FuelScreen'
 
-type Tab = 'today' | 'progress' | 'history'
+type Tab = 'today' | 'fuel' | 'progress' | 'history'
 
 export function App() {
   const settings = useLiveQuery(() => db.settings.get('singleton'))
@@ -54,6 +55,8 @@ export function App() {
         />
       )}
 
+      {tab === 'fuel' && <FuelScreen settings={settings} />}
+
       {tab === 'progress' && <ProgressScreen settings={settings} phases={phases} />}
 
       {tab === 'history' && <HistoryView onOpen={(id) => openLog(id, 'history')} />}
@@ -61,6 +64,9 @@ export function App() {
       <nav className="bottom-nav">
         <button className={tab === 'today' ? 'active' : ''} onClick={() => setTab('today')}>
           Today
+        </button>
+        <button className={tab === 'fuel' ? 'active' : ''} onClick={() => setTab('fuel')}>
+          Fuel
         </button>
         <button className={tab === 'progress' ? 'active' : ''} onClick={() => setTab('progress')}>
           Progress
