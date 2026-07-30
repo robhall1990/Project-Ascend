@@ -1,5 +1,6 @@
-import type { DayNumber, Exercise, ProgramPhase } from '../types'
-import { effectiveRepRange, formatPrescription } from '../lib/schedule'
+import type { DayNumber, Exercise, ProgramPhase, WeightUnit } from '../types'
+import { effectiveRepRange, effectiveSetCount, formatPrescription } from '../lib/schedule'
+import type { Suggestion } from '../lib/progression'
 
 interface Props {
   day: DayNumber
@@ -7,11 +8,21 @@ interface Props {
   isToday: boolean
   exercises: Exercise[]
   phase: ProgramPhase | undefined
+  deload: boolean
+  unit: WeightUnit
+  suggestions: Record<string, Suggestion>
 }
 
-export function SessionView({ day, title, isToday, exercises, phase }: Props) {
-  // Group consecutive exercises that share a supersetGroup so they render
-  // together inside a bracket; standalone exercises render on their own.
+export function SessionView({
+  day,
+  title,
+  isToday,
+  exercises,
+  phase,
+  deload,
+  unit,
+  suggestions,
+}: Props) {
   const rows: Array<{ group?: string; items: Exercise[] }> = []
   for (const ex of exercises) {
     const last = rows[rows.length - 1]
@@ -37,16 +48,26 @@ export function SessionView({ day, title, isToday, exercises, phase }: Props) {
           <div className="superset-bracket" key={i}>
             <p className="superset-label">Superset</p>
             {row.items.map((ex) => (
-              <ExerciseCard key={ex.id} ex={ex} phase={phase} inSuperset />
+              <ExerciseCard
+                key={ex.id}
+                ex={ex}
+                phase={phase}
+                deload={deload}
+                unit={unit}
+                suggestion={suggestions[ex.id]}
+                inSuperset
+              />
             ))}
-            {row.items[0].notes && (
-              <p className="exercise-note" style={{ marginLeft: 2 }}>
-                {row.items.length} exercises, alternating sets with minimal rest
-              </p>
-            )}
           </div>
         ) : (
-          <ExerciseCard key={row.items[0].id} ex={row.items[0]} phase={phase} />
+          <ExerciseCard
+            key={row.items[0].id}
+            ex={row.items[0]}
+            phase={phase}
+            deload={deload}
+            unit={unit}
+            suggestion={suggestions[row.items[0].id]}
+          />
         ),
       )}
     </section>
@@ -56,13 +77,20 @@ export function SessionView({ day, title, isToday, exercises, phase }: Props) {
 function ExerciseCard({
   ex,
   phase,
+  deload,
+  unit,
+  suggestion,
   inSuperset,
 }: {
   ex: Exercise
   phase: ProgramPhase | undefined
+  deload: boolean
+  unit: WeightUnit
+  suggestion?: Suggestion
   inSuperset?: boolean
 }) {
   const range = effectiveRepRange(ex, phase)
+  const sets = effectiveSetCount(ex.setCount, deload)
   return (
     <div className={`exercise-card${ex.isMainLift ? ' main-lift' : ''}`}>
       <div className="exercise-main">
@@ -73,12 +101,21 @@ function ExerciseCard({
           </div>
         )}
         {ex.notes && !inSuperset && <div className="exercise-note">{ex.notes}</div>}
+        {suggestion && suggestion.action !== 'none' && (
+          <div className={`suggestion ${suggestion.action}`}>
+            <span className="suggestion-weight">
+              {suggestion.action === 'increase' ? '↑ ' : '→ '}
+              {suggestion.suggestedWeight}
+              {unit}
+            </span>
+            <span className="suggestion-reason">{suggestion.reason}</span>
+          </div>
+        )}
       </div>
       <div className="prescription">
-        <span className="reps">
-          {formatPrescription(ex.setCount, range.min, range.max)}
-        </span>
+        <span className="reps">{formatPrescription(sets, range.min, range.max)}</span>
         {range.adjusted && <span className="adjusted">phase-adjusted</span>}
+        {deload && <span className="adjusted deload">deload</span>}
       </div>
     </div>
   )

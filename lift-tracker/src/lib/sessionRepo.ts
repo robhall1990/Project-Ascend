@@ -57,27 +57,3 @@ export async function saveSet(input: {
   }
   await db.setLogs.put(log)
 }
-
-/**
- * Most recent previously-logged weight per exercise, taken from the latest
- * completed session before `beforeCreatedAt`. Used to pre-fill inputs.
- */
-export async function lastWeightsByExercise(
-  beforeCreatedAt: number,
-): Promise<Record<string, number>> {
-  // Ascending by createdAt, then walk newest→oldest.
-  const prior = (
-    await db.sessions.where('createdAt').below(beforeCreatedAt).sortBy('createdAt')
-  ).reverse()
-  const result: Record<string, number> = {}
-  // Walk newest→oldest, filling each exercise once.
-  for (const s of prior) {
-    const logs = await db.setLogs.where('sessionId').equals(s.id).toArray()
-    for (const l of logs) {
-      if (result[l.exerciseId] == null && l.weight > 0) {
-        result[l.exerciseId] = l.weight
-      }
-    }
-  }
-  return result
-}

@@ -14,9 +14,16 @@ Built phase by phase — see the build brief.
 - **Phase 2 — Training logging** ✅
   Start / resume / finish / discard a session. Per-set weight, reps and optional
   RPE written straight to IndexedDB as you type; weight carries down from the
-  previous set and pre-fills from last time. Adjustable rest timer between sets.
-  History tab lists past sessions; tap to reopen and edit. The rotation pointer
-  advances only when a session is finished.
+  previous set. Adjustable rest timer between sets. History tab lists past
+  sessions; tap to reopen and edit. The rotation pointer advances only when a
+  session is finished.
+- **Phase 3 — Progression engine** ✅
+  Double progression per exercise, computed from history: every set at the top
+  of the range → suggest +one increment (barbell lower body +5 kg / everything
+  else +2.5 kg; ×2 in lb) and reset to the bottom; otherwise hold. Suggestions
+  pre-fill the logging inputs. Estimated 1RM (Epley) tracked for the four main
+  lifts and shown on the home strength strip. Deload weeks (6/12/18 + taper)
+  auto-flag, cut suggested volume to 2 sets, and hold weight.
 
 ## Develop
 

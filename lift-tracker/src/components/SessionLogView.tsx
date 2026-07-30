@@ -3,14 +3,17 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import type { Exercise, ProgramPhase } from '../types'
 import { DAY_TITLES } from '../data/program'
-import { effectiveRepRange, formatPrescription } from '../lib/schedule'
-import { setLogId } from '../lib/id'
 import {
-  discardSession,
-  finishSession,
-  lastWeightsByExercise,
-  saveSet,
-} from '../lib/sessionRepo'
+  effectiveRepRange,
+  effectiveSetCount,
+  formatPrescription,
+  isDeloadWeek,
+  parseISODate,
+  programPosition,
+} from '../lib/schedule'
+import { suggestionsForDay, type Suggestion } from '../lib/progression'
+import { setLogId } from '../lib/id'
+import { discardSession, finishSession, saveSet } from '../lib/sessionRepo'
 import { RestTimer } from './RestTimer'
 
 const DEFAULT_REST = 120
@@ -49,18 +52,37 @@ export function SessionLogView({ sessionId, onExit }: Props) {
         : Promise.resolve<ProgramPhase | undefined>(undefined),
     [session?.phaseId],
   )
+  const phases = useLiveQuery(() => db.phases.orderBy('weekStart').toArray(), [], [])
+
+  // Program week of this session's date → deload detection.
+  const week =
+    session && settings
+      ? programPosition(settings.programStartDate, parseISODate(session.date)).week
+      : 1
+  const deload = isDeloadWeek(week, phase ?? undefined)
+
+  // Double-progression suggestions for this session (excludes itself).
+  const suggestions = useLiveQuery(
+    () =>
+      session && settings && phases
+        ? suggestionsForDay(
+            session.day,
+            phase ?? undefined,
+            deload,
+            phases,
+            settings.weightUnit,
+            session.id,
+          )
+        : Promise.resolve({} as Record<string, Suggestion>),
+    [session?.day, phase?.id, deload, settings?.weightUnit, session?.id, phases],
+    {} as Record<string, Suggestion>,
+  )
 
   const [entries, setEntries] = useState<Record<string, Entry>>({})
   const [done, setDone] = useState<Set<string>>(new Set())
-  const [prefill, setPrefill] = useState<Record<string, number>>({})
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null)
   const [restTotal, setRestTotal] = useState(DEFAULT_REST)
   const initRef = useRef<string | null>(null)
-
-  // Load last-used weights for pre-fill hints (once per session).
-  useEffect(() => {
-    if (session) lastWeightsByExercise(session.createdAt).then(setPrefill)
-  }, [session?.createdAt])
 
   // Initialise local input state from any already-persisted set logs.
   useEffect(() => {
@@ -88,8 +110,8 @@ export function SessionLogView({ sessionId, onExit }: Props) {
   }, [session, sessionId])
 
   const totalSets = useMemo(
-    () => (exercises ?? []).reduce((n, ex) => n + ex.setCount, 0),
-    [exercises],
+    () => (exercises ?? []).reduce((n, ex) => n + effectiveSetCount(ex.setCount, deload), 0),
+    [exercises, deload],
   )
 
   if (!session || !exercises || !settings) {
@@ -103,13 +125,14 @@ export function SessionLogView({ sessionId, onExit }: Props) {
     return entries[key] ?? blank
   }
 
-  /** Placeholder weight for a set: previous set's weight, else last session's. */
+  /** Placeholder weight for a set: previous set's weight, else the suggestion. */
   function placeholderWeight(ex: Exercise, setNumber: number): string {
     for (let n = setNumber - 1; n >= 1; n--) {
       const w = entries[setLogId(sessionId, ex.id, n)]?.weight
       if (w) return w
     }
-    return prefill[ex.id] != null ? String(prefill[ex.id]) : ''
+    const suggested = suggestions?.[ex.id]?.suggestedWeight
+    return suggested != null ? String(suggested) : ''
   }
 
   function update(ex: Exercise, setNumber: number, field: keyof Entry, value: string) {
@@ -181,16 +204,35 @@ export function SessionLogView({ sessionId, onExit }: Props) {
         <span className="log-progress">{doneCount}/{totalSets}</span>
       </header>
 
+      {deload && (
+        <div className="deload-banner">
+          🪫 Deload week — 2 sets per exercise, hold your weights.
+        </div>
+      )}
+
       {exercises.map((ex) => {
         const range = effectiveRepRange(ex, phase ?? undefined)
+        const sets = effectiveSetCount(ex.setCount, deload)
+        const sug = suggestions?.[ex.id]
         return (
           <div key={ex.id} className={`log-exercise${ex.isMainLift ? ' main-lift' : ''}`}>
             <div className="log-exercise-head">
               <div className="log-exercise-name">{ex.name}</div>
               <div className="log-exercise-target">
-                target {formatPrescription(ex.setCount, range.min, range.max)}
+                target {formatPrescription(sets, range.min, range.max)}
                 {range.adjusted && <span className="adjusted"> · phase-adjusted</span>}
+                {deload && <span className="adjusted"> · deload</span>}
               </div>
+              {sug && sug.action !== 'none' && (
+                <div className={`suggestion ${sug.action}`}>
+                  <span className="suggestion-weight">
+                    {sug.action === 'increase' ? '↑ ' : '→ '}
+                    {sug.suggestedWeight}
+                    {unit}
+                  </span>
+                  <span className="suggestion-reason">{sug.reason}</span>
+                </div>
+              )}
             </div>
 
             <div className="set-grid-head">
@@ -201,7 +243,7 @@ export function SessionLogView({ sessionId, onExit }: Props) {
               <span></span>
             </div>
 
-            {Array.from({ length: ex.setCount }, (_, i) => i + 1).map((setNumber) => {
+            {Array.from({ length: sets }, (_, i) => i + 1).map((setNumber) => {
               const key = setLogId(sessionId, ex.id, setNumber)
               const e = entryFor(key)
               const isDone = done.has(key)

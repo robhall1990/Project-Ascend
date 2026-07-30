@@ -564,3 +564,89 @@ body,
   background: rgba(251, 191, 36, 0.15);
   color: var(--main-lift);
 }
+
+/* ---- Progression suggestion ---- */
+.suggestion {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.suggestion-weight {
+  font-size: 13px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 7px;
+  white-space: nowrap;
+}
+.suggestion.increase .suggestion-weight {
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.14);
+}
+.suggestion.hold .suggestion-weight {
+  color: var(--text-dim);
+  background: var(--surface-2);
+}
+.suggestion-reason {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  line-height: 1.3;
+}
+
+/* ---- Strength strip (estimated 1RM) ---- */
+.strength-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.strength-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 6px;
+  text-align: center;
+}
+.strength-label {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.strength-value {
+  font-size: 19px;
+  font-weight: 800;
+  margin-top: 2px;
+}
+.strength-unit {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-left: 1px;
+}
+.strength-cap {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+/* ---- Deload banner ---- */
+.deload-banner {
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: #fcd34d;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-bottom: 14px;
+}
+.prescription .adjusted.deload {
+  color: #fcd34d;
+}

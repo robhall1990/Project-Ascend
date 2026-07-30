@@ -81,3 +81,18 @@ export function formatPrescription(setCount: number, min: number, max: number): 
   const reps = min === max ? `${min}` : `${min}-${max}`
   return `${setCount}×${reps}`
 }
+
+/**
+ * Weeks on which a deload is due. Every ~6 weeks (6, 12, 18) plus the taper
+ * block, matching "deload every 5-6 weeks" from the program.
+ */
+export const DELOAD_WEEKS = [6, 12, 18]
+
+export function isDeloadWeek(week: number, phase: ProgramPhase | undefined): boolean {
+  return DELOAD_WEEKS.includes(week) || !!phase?.isTaper
+}
+
+/** Suggested working sets, cut to 2 on a deload week (from the usual 3-4). */
+export function effectiveSetCount(setCount: number, deload: boolean): number {
+  return deload ? Math.min(2, setCount) : setCount
+}
