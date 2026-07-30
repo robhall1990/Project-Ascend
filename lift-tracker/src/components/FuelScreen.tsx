@@ -10,7 +10,8 @@ import {
   setDayType,
   setEndurance,
 } from '../lib/nutrition'
-import { deleteEntry, saveMealFromEntries } from '../lib/foodRepo'
+import { deleteEntry, logMeal, saveMealFromEntries, suggestMeals } from '../lib/foodRepo'
+import type { Meal } from '../types'
 import { ProteinRing, MacroBar } from './MacroRings'
 import { StatsForm } from './StatsForm'
 import { FoodLogSheet, SLOT_LABEL } from './FoodLogSheet'
@@ -55,6 +56,7 @@ export function FuelScreen({
   const bw = useLiveQuery(() => db.bodyweightLogs.orderBy('createdAt').last())
   const dayNut = useLiveQuery(() => db.dayNutrition.get(today), [today])
   const entries = useLiveQuery(() => db.foodEntries.where('date').equals(today).toArray(), [today], [])
+  const meals = useLiveQuery(() => db.meals.toArray(), [], [])
 
   const [editingStats, setEditingStats] = useState(false)
   const [sheetSlot, setSheetSlot] = useState<MealSlot | null>(null)
@@ -154,6 +156,17 @@ export function FuelScreen({
             onSaveMeal={(name, es) => saveMealFromEntries(name, es)}
           />
 
+          <MealSuggestions
+            meals={meals ?? []}
+            remaining={{
+              calories: Math.max(target.calories - consumed.calories, 0),
+              protein: Math.max(target.protein - consumed.protein, 0),
+              carbs: Math.max(target.carbs - consumed.carbs, 0),
+              fat: Math.max(target.fat - consumed.fat, 0),
+            }}
+            onLog={(m) => logMeal(today, guessSlot(), m)}
+          />
+
           {/* Goal + rationale */}
           <div className="goal-row">
             <span className="goal-label">Goal</span>
@@ -244,6 +257,49 @@ function FoodLog({
           ))}
         </div>
       ))}
+    </div>
+  )
+}
+
+function MealSuggestions({
+  meals,
+  remaining,
+  onLog,
+}: {
+  meals: Meal[]
+  remaining: { calories: number; protein: number; carbs: number; fat: number }
+  onLog: (m: Meal) => void
+}) {
+  const suggestions = suggestMeals(meals, remaining, 4)
+
+  return (
+    <div className="suggestions-section">
+      <h2 className="suggestions-title">Meal suggestions</h2>
+      {meals.length === 0 ? (
+        <p className="suggestions-empty">
+          Save meals from your logged food (tap “Save as meal” on a slot) to get
+          protein-first suggestions that fit your remaining macros.
+        </p>
+      ) : suggestions.length === 0 ? (
+        <p className="suggestions-empty">
+          Nothing fits your remaining headroom right now — you’re close to today’s targets.
+        </p>
+      ) : (
+        suggestions.map(({ meal, proteinDensity }) => (
+          <div className="suggestion-row" key={meal.id}>
+            <div className="suggestion-info">
+              <div className="suggestion-name">🍽 {meal.name}</div>
+              <div className="suggestion-macros">
+                {meal.calories} kcal · P{meal.protein} C{meal.carbs} F{meal.fat} ·{' '}
+                <span className="suggestion-density">{Math.round(proteinDensity * 1000) / 10} g P/100 kcal</span>
+              </div>
+            </div>
+            <button className="add-btn" onClick={() => onLog(meal)}>
+              Log
+            </button>
+          </div>
+        ))
+      )}
     </div>
   )
 }

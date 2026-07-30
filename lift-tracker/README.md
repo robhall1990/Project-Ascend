@@ -52,6 +52,12 @@ Built phase by phase — see the build brief.
   progress pre→post, auto-dismiss once the relevant slot is logged, and have a
   manual dismiss remembered for the day. A card's action jumps to Fuel with the
   log sheet already open at the right slot.
+- **Phase 8 — Meal suggestions** ✅
+  Rules-based suggestions over the user's own saved Meals: filtered to those that
+  fit today's remaining calorie/carb/fat headroom (protein may overshoot, since
+  hitting protein is the goal) and ranked by protein density, each one-tap
+  loggable. (Herbi/Mealio was checked as a suggestion source but is a family
+  dinner planner with no per-recipe macros, so it isn't reused.)
 
 ## Develop
 

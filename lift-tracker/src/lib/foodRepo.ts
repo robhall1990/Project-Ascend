@@ -112,6 +112,34 @@ export async function saveMealFromEntries(name: string, entries: FoodEntry[]): P
   await db.meals.add(meal)
 }
 
+export interface MealSuggestion {
+  meal: Meal
+  /** Protein grams per kcal — the ranking key. */
+  proteinDensity: number
+}
+
+/**
+ * Suggest saved meals that help close the gap to today's remaining macros.
+ * A meal must fit the remaining calorie/carb/fat headroom (with a small
+ * tolerance); protein is allowed to overshoot since hitting protein is the
+ * goal. Ranked by protein density, then absolute protein.
+ */
+export function suggestMeals(meals: Meal[], remaining: Macros, limit = 4): MealSuggestion[] {
+  const CAL_TOL = 100
+  const CARB_TOL = 30
+  const FAT_TOL = 15
+  return meals
+    .filter(
+      (m) =>
+        m.calories <= remaining.calories + CAL_TOL &&
+        m.carbs <= remaining.carbs + CARB_TOL &&
+        m.fat <= remaining.fat + FAT_TOL,
+    )
+    .map((meal) => ({ meal, proteinDensity: meal.calories > 0 ? meal.protein / meal.calories : 0 }))
+    .sort((a, b) => b.proteinDensity - a.proteinDensity || b.meal.protein - a.meal.protein)
+    .slice(0, limit)
+}
+
 export async function deleteFoodItem(id: string): Promise<void> {
   await db.foodItems.delete(id)
 }
