@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
+import type { MealSlot } from './types'
 import { SessionLogView } from './components/SessionLogView'
 import { HistoryView } from './components/HistoryView'
 import { TodayScreen } from './components/TodayScreen'
@@ -21,6 +22,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>('today')
   const [logSessionId, setLogSessionId] = useState<string | null>(null)
   const [logReturnTo, setLogReturnTo] = useState<Tab>('today')
+  const [fuelInitialSlot, setFuelInitialSlot] = useState<MealSlot | null>(null)
 
   if (!settings || !exercises || !phases || sessions === undefined) {
     return <div className="app">Loading…</div>
@@ -52,10 +54,20 @@ export function App() {
           phases={phases}
           sessions={sessions}
           onOpenLog={(id) => openLog(id, 'today')}
+          onGoToFuel={(slot) => {
+            setFuelInitialSlot(slot)
+            setTab('fuel')
+          }}
         />
       )}
 
-      {tab === 'fuel' && <FuelScreen settings={settings} />}
+      {tab === 'fuel' && (
+        <FuelScreen
+          settings={settings}
+          initialSlot={fuelInitialSlot}
+          onInitialSlotConsumed={() => setFuelInitialSlot(null)}
+        />
+      )}
 
       {tab === 'progress' && <ProgressScreen settings={settings} phases={phases} />}
 

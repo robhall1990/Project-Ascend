@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import type { DayType, EnduranceIntensity, FoodEntry, GoalMode, MealSlot, Settings } from '../types'
@@ -41,7 +41,15 @@ const COLOR = {
   fat: '#a78bfa',
 }
 
-export function FuelScreen({ settings }: { settings: Settings }) {
+export function FuelScreen({
+  settings,
+  initialSlot = null,
+  onInitialSlotConsumed,
+}: {
+  settings: Settings
+  initialSlot?: MealSlot | null
+  onInitialSlotConsumed?: () => void
+}) {
   const today = todayISO()
   const stats = useLiveQuery(() => db.userStats.get('singleton'))
   const bw = useLiveQuery(() => db.bodyweightLogs.orderBy('createdAt').last())
@@ -50,6 +58,15 @@ export function FuelScreen({ settings }: { settings: Settings }) {
 
   const [editingStats, setEditingStats] = useState(false)
   const [sheetSlot, setSheetSlot] = useState<MealSlot | null>(null)
+
+  // Open the log sheet at the slot requested from a home-screen guidance card.
+  useEffect(() => {
+    if (initialSlot) {
+      setSheetSlot(initialSlot)
+      onInitialSlotConsumed?.()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSlot])
 
   if (!stats || !bw) return <div className="app">Loading…</div>
 

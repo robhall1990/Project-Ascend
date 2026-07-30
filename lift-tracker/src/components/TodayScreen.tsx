@@ -1,16 +1,20 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import type { DayNumber, Exercise, ProgramPhase, Settings, Session } from '../types'
+import { db } from '../db/db'
+import type { DayNumber, Exercise, MealSlot, ProgramPhase, Settings, Session } from '../types'
 import { DAY_TITLES } from '../data/program'
 import {
   isDeloadWeek,
   nextDayAfter,
   phaseForWeek,
   programPosition,
+  todayISO,
 } from '../lib/schedule'
 import { mainLiftBests, suggestionsForDay, type Suggestion } from '../lib/progression'
+import { dismissGuidance, guidanceCards, resolveTarget } from '../lib/nutrition'
 import { startSession } from '../lib/sessionRepo'
 import { SessionView } from './SessionView'
+import { GuidanceCards } from './GuidanceCards'
 
 interface Props {
   settings: Settings
@@ -18,6 +22,7 @@ interface Props {
   phases: ProgramPhase[]
   sessions: Session[]
   onOpenLog: (id: string) => void
+  onGoToFuel: (slot: MealSlot) => void
 }
 
 const SHORT_LABEL: Record<string, string> = {
@@ -27,8 +32,16 @@ const SHORT_LABEL: Record<string, string> = {
   'd2-squat': 'Squat/DL',
 }
 
-export function TodayScreen({ settings, exercises, phases, sessions, onOpenLog }: Props) {
+export function TodayScreen({
+  settings,
+  exercises,
+  phases,
+  sessions,
+  onOpenLog,
+  onGoToFuel,
+}: Props) {
   const [selectedDay, setSelectedDay] = useState<DayNumber | null>(null)
+  const today = todayISO()
 
   const pos = useMemo(
     () => programPosition(settings.programStartDate),
@@ -54,6 +67,36 @@ export function TodayScreen({ settings, exercises, phases, sessions, onOpenLog }
     {} as Record<string, Suggestion>,
   )
   const bests = useLiveQuery(() => mainLiftBests(), [], [])
+
+  // ---- Training-day nutrition guidance ----
+  const stats = useLiveQuery(() => db.userStats.get('singleton'))
+  const bw = useLiveQuery(() => db.bodyweightLogs.orderBy('createdAt').last())
+  const dayNut = useLiveQuery(() => db.dayNutrition.get(today), [today])
+  const todayEntries = useLiveQuery(
+    () => db.foodEntries.where('date').equals(today).toArray(),
+    [today],
+    [],
+  )
+
+  const cards = useMemo(() => {
+    if (!stats || !bw) return []
+    const target = resolveTarget(dayNut, {
+      stats,
+      bodyweightKg: bw.weightKg,
+      goal: settings.goalMode,
+    })
+    const consumedCalories = (todayEntries ?? []).reduce((n, e) => n + e.calories, 0)
+    return guidanceCards({
+      dayType: dayNut?.dayType ?? 'lift',
+      enduranceMinutes: dayNut?.enduranceMinutes ?? 0,
+      preLogged: (todayEntries ?? []).some((e) => e.slot === 'pre-training'),
+      postLogged: (todayEntries ?? []).some((e) => e.slot === 'post-training'),
+      sessionCompletedToday: sessions.some((s) => s.date === today && s.completedAt != null),
+      consumedCalories,
+      targetCalories: target.calories,
+      dismissed: dayNut?.dismissedGuidance ?? [],
+    })
+  }, [stats, bw, dayNut, todayEntries, sessions, today, settings.goalMode])
 
   async function startToday() {
     const s = await startSession(activeDay, currentPhase?.id ?? phases[0].id)
@@ -121,6 +164,12 @@ export function TodayScreen({ settings, exercises, phases, sessions, onOpenLog }
           {activeDay !== todayDay && <span className="cta-sub">Previewing — not today’s session</span>}
         </button>
       )}
+
+      <GuidanceCards
+        cards={cards}
+        onAction={(slot) => onGoToFuel(slot)}
+        onDismiss={(id) => dismissGuidance(today, id)}
+      />
 
       <nav className="day-tabs">
         {([1, 2, 3, 4] as DayNumber[]).map((d) => (

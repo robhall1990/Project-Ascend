@@ -121,6 +121,8 @@ export interface DayNutrition {
   enduranceIntensity?: EnduranceIntensity
   /** Manual override of the computed target for this date. */
   override?: { calories: number; protein: number; carbs: number; fat: number }
+  /** Ids of training-nutrition guidance cards the user dismissed today. */
+  dismissedGuidance?: string[]
 }
 
 // Declared for later nutrition phases (food logging, meals).

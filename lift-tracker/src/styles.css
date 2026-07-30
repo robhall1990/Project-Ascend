@@ -1226,3 +1226,63 @@ body,
   font-size: 13px;
   text-align: center;
 }
+
+/* ---- Training-day guidance cards ---- */
+.guidance {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.guidance-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 12px;
+  padding: 12px 34px 12px 13px;
+}
+.guidance-card.flag {
+  border-left-color: var(--main-lift);
+  background: rgba(251, 191, 36, 0.07);
+}
+.guidance-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+.guidance-icon {
+  font-size: 16px;
+}
+.guidance-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+.guidance-body {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  line-height: 1.45;
+  margin: 0 0 10px;
+}
+.guidance-action {
+  background: rgba(56, 189, 248, 0.12);
+  border: none;
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.guidance-dismiss {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 6px;
+}

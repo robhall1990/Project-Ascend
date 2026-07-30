@@ -7,6 +7,7 @@ import type {
   DayType,
   EnduranceIntensity,
   GoalMode,
+  MealSlot,
   UserStats,
 } from '../types'
 
@@ -158,4 +159,93 @@ export async function setEndurance(
     enduranceMinutes: minutes,
     enduranceIntensity: intensity,
   })
+}
+
+export async function dismissGuidance(date: string, cardId: string): Promise<void> {
+  const existing = await db.dayNutrition.get(date)
+  const dismissed = new Set(existing?.dismissedGuidance ?? [])
+  dismissed.add(cardId)
+  await db.dayNutrition.put({
+    ...(existing ?? { date, dayType: 'lift' as DayType }),
+    date,
+    dayType: existing?.dayType ?? 'lift',
+    dismissedGuidance: [...dismissed],
+  })
+}
+
+// ---- Training-day nutrition guidance -----------------------------------------
+
+export type GuidanceId = 'pre' | 'post' | 'endurance'
+
+export interface GuidanceCard {
+  id: GuidanceId
+  icon: string
+  title: string
+  body: string
+  actionSlot: MealSlot
+  actionLabel: string
+  flag: boolean
+}
+
+export interface GuidanceInputs {
+  dayType: DayType
+  enduranceMinutes: number
+  preLogged: boolean
+  postLogged: boolean
+  sessionCompletedToday: boolean
+  consumedCalories: number
+  targetCalories: number
+  dismissed: string[]
+}
+
+/**
+ * Contextual fuelling cards for the home screen, tied to the day's training.
+ * Cards progress (pre → post) and drop out as the relevant slot is logged; a
+ * dismissed id is filtered out too.
+ */
+export function guidanceCards(input: GuidanceInputs): GuidanceCard[] {
+  const cards: GuidanceCard[] = []
+
+  if (input.dayType === 'lift') {
+    const showPre = !input.preLogged && !input.sessionCompletedToday
+    const showPost = !input.postLogged && (input.preLogged || input.sessionCompletedToday)
+
+    if (showPre) {
+      const low = input.consumedCalories < input.targetCalories * 0.2
+      cards.push({
+        id: 'pre',
+        icon: '🍚',
+        title: 'Pre-lift fuel',
+        body: low
+          ? 'You’ve logged very little so far — get a carb-focused meal in 1–3 h before you lift (moderate protein, low fat & fibre).'
+          : 'Aim for a carb-focused meal 1–3 h before lifting: moderate protein, low fat & fibre.',
+        actionSlot: 'pre-training',
+        actionLabel: 'Log pre-training',
+        flag: low,
+      })
+    }
+    if (showPost) {
+      cards.push({
+        id: 'post',
+        icon: '🥩',
+        title: 'Post-lift protein',
+        body: 'Get a solid protein feed in over the next few hours. Total daily protein matters far more than timing — no 30-minute rush.',
+        actionSlot: 'post-training',
+        actionLabel: 'Log post-training',
+        flag: false,
+      })
+    }
+  } else if (input.dayType === 'endurance' && input.enduranceMinutes >= 90) {
+    cards.push({
+      id: 'endurance',
+      icon: '🚴',
+      title: 'Fuel the long session',
+      body: 'For endurance over ~90 min, take carbohydrate during the session — roughly 30–60 g per hour — to hold pace and protect recovery.',
+      actionSlot: 'pre-training',
+      actionLabel: 'Log fuel',
+      flag: false,
+    })
+  }
+
+  return cards.filter((c) => !input.dismissed.includes(c.id))
 }

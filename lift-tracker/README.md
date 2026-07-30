@@ -44,6 +44,14 @@ Built phase by phase — see the build brief.
   the Fuel rings/bars live; entries are listed per slot and deletable; a slot's
   entries can be saved as a one-tap Meal. Over-target reads "0 left" (never a
   failure state). Photo estimation intentionally deferred.
+- **Phase 7 — Training-day nutrition guidance** ✅
+  Contextual fuelling cards on the Today screen, driven by the day type: a
+  pre-lift carb prompt (flags when little has been logged), a post-lift protein
+  prompt (framed as "over the next few hours", not the overstated 30-min
+  window), and an in-session carb prompt for endurance sessions ≥90 min. Cards
+  progress pre→post, auto-dismiss once the relevant slot is logged, and have a
+  manual dismiss remembered for the day. A card's action jumps to Fuel with the
+  log sheet already open at the right slot.
 
 ## Develop
 
