@@ -48,6 +48,10 @@ export interface Settings {
   programStartDate: string
   weightUnit: WeightUnit
   goalMode: GoalMode
+  /** Optional Anthropic API key (on-device only) for photo food estimation. */
+  anthropicApiKey?: string
+  /** Model used for photo estimation. */
+  anthropicModel?: string
 }
 
 // ---- Declared now, used in later phases -------------------------------------

@@ -20,6 +20,7 @@ export function StatsForm({ stats, bodyweightKg, settings, onClose }: Props) {
   const [sex, setSex] = useState<Sex>(stats.sex)
   const [activity, setActivity] = useState<ActivityLevel>(stats.activity)
   const [protein, setProtein] = useState(String(stats.proteinPerKg))
+  const [apiKey, setApiKey] = useState(settings.anthropicApiKey ?? '')
 
   async function save() {
     const w = parseFloat(weight)
@@ -31,6 +32,7 @@ export function StatsForm({ stats, bodyweightKg, settings, onClose }: Props) {
       proteinPerKg: Math.min(Math.max(parseFloat(protein) || 1.8, 1.2), 3),
       configured: true,
     })
+    await db.settings.update('singleton', { anthropicApiKey: apiKey.trim() || undefined })
     if (Number.isFinite(w) && w > 0) await logBodyweight(toKg(w, unit))
     onClose()
   }
@@ -77,6 +79,20 @@ export function StatsForm({ stats, bodyweightKg, settings, onClose }: Props) {
             value={protein}
             onChange={(e) => setProtein(e.target.value)}
           />
+        </label>
+        <label className="span-2">
+          Anthropic API key — optional, for 📷 photo estimation
+          <input
+            type="password"
+            autoComplete="off"
+            placeholder="sk-ant-…"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+          <span className="stats-hint">
+            Stored only on this device. Used solely to estimate meals from photos, sent directly to
+            Anthropic.
+          </span>
         </label>
       </div>
       <div className="stats-actions">

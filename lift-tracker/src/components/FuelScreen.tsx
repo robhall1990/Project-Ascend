@@ -193,7 +193,12 @@ export function FuelScreen({
       )}
 
       {sheetSlot && (
-        <FoodLogSheet date={today} initialSlot={sheetSlot} onClose={() => setSheetSlot(null)} />
+        <FoodLogSheet
+          date={today}
+          initialSlot={sheetSlot}
+          settings={settings}
+          onClose={() => setSheetSlot(null)}
+        />
       )}
     </div>
   )

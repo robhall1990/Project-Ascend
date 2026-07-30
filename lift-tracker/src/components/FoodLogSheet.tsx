@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import type { FoodItem, MealSlot } from '../types'
+import type { FoodItem, MealSlot, Settings } from '../types'
 import {
   addManualEntry,
   deleteFoodItem,
@@ -12,6 +12,7 @@ import {
   saveFoodItem,
   type Macros,
 } from '../lib/foodRepo'
+import { analyzeMealPhoto, fileToBase64Jpeg, type PhotoEstimate } from '../lib/aiPhoto'
 
 export const SLOT_LABEL: Record<MealSlot, string> = {
   'pre-training': 'Pre-training',
@@ -26,6 +27,7 @@ const SLOTS = Object.keys(SLOT_LABEL) as MealSlot[]
 interface Props {
   date: string
   initialSlot: MealSlot
+  settings: Settings
   onClose: () => void
 }
 
@@ -34,10 +36,34 @@ const numOr0 = (s: string) => {
   return Number.isFinite(v) ? v : 0
 }
 
-export function FoodLogSheet({ date, initialSlot, onClose }: Props) {
+export interface ManualInitial {
+  name: string
+  cal: string
+  p: string
+  c: string
+  f: string
+  portion: string
+}
+
+export function FoodLogSheet({ date, initialSlot, settings, onClose }: Props) {
   const [slot, setSlot] = useState<MealSlot>(initialSlot)
-  const [tab, setTab] = useState<'saved' | 'manual'>('saved')
+  const [tab, setTab] = useState<'saved' | 'manual' | 'photo'>('saved')
   const [search, setSearch] = useState('')
+  const [prefill, setPrefill] = useState<ManualInitial | null>(null)
+  const [prefillKey, setPrefillKey] = useState(0)
+
+  function usePhotoEstimate(est: PhotoEstimate) {
+    setPrefill({
+      name: est.name,
+      cal: String(est.calories),
+      p: String(est.protein),
+      c: String(est.carbs),
+      f: String(est.fat),
+      portion: 'photo estimate',
+    })
+    setPrefillKey((k) => k + 1)
+    setTab('manual')
+  }
 
   const foodItems = useLiveQuery(() => db.foodItems.orderBy('name').toArray(), [], [])
   const meals = useLiveQuery(() => db.meals.orderBy('name').toArray(), [], [])
@@ -72,6 +98,9 @@ export function FoodLogSheet({ date, initialSlot, onClose }: Props) {
           </button>
           <button className={tab === 'manual' ? 'active' : ''} onClick={() => setTab('manual')}>
             Manual
+          </button>
+          <button className={tab === 'photo' ? 'active' : ''} onClick={() => setTab('photo')}>
+            📷 Photo
           </button>
         </div>
 
@@ -111,10 +140,79 @@ export function FoodLogSheet({ date, initialSlot, onClose }: Props) {
               <SavedFoodRow key={item.id} item={item} onAdd={(g) => logFoodItem(date, slot, item, g)} onDelete={() => deleteFoodItem(item.id)} />
             ))}
           </div>
+        ) : tab === 'photo' ? (
+          <PhotoTab settings={settings} onEstimate={usePhotoEstimate} />
         ) : (
-          <ManualForm date={date} slot={slot} onLogged={() => setTab('saved')} />
+          <ManualForm
+            key={prefillKey}
+            date={date}
+            slot={slot}
+            initial={prefill}
+            onLogged={() => {
+              setPrefill(null)
+              setTab('saved')
+            }}
+          />
         )}
       </div>
+    </div>
+  )
+}
+
+function PhotoTab({
+  settings,
+  onEstimate,
+}: {
+  settings: Settings
+  onEstimate: (est: PhotoEstimate) => void
+}) {
+  const [status, setStatus] = useState<'idle' | 'analyzing' | 'error'>('idle')
+  const [message, setMessage] = useState('')
+
+  if (!settings.anthropicApiKey) {
+    return (
+      <div className="sheet-body">
+        <p className="chart-empty">
+          📷 Add your Anthropic API key in <b>Stats</b> (top-right) to estimate a meal from a photo.
+          It’s stored only on this device and sent directly to Anthropic. Estimates are a starting
+          point — you always confirm before logging.
+        </p>
+      </div>
+    )
+  }
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setStatus('analyzing')
+    setMessage('')
+    try {
+      const b64 = await fileToBase64Jpeg(file)
+      const est = await analyzeMealPhoto(b64, settings.anthropicApiKey!, settings.anthropicModel)
+      setStatus('idle')
+      onEstimate(est)
+    } catch (err) {
+      setStatus('error')
+      setMessage(err instanceof Error ? err.message : 'Could not analyze that photo')
+    }
+  }
+
+  return (
+    <div className="sheet-body">
+      <label className={`photo-drop${status === 'analyzing' ? ' busy' : ''}`}>
+        <input type="file" accept="image/*" capture="environment" onChange={onFile} hidden disabled={status === 'analyzing'} />
+        {status === 'analyzing' ? (
+          <span className="photo-analyzing">Analyzing your photo…</span>
+        ) : (
+          <span className="photo-cta">📷 Take or choose a meal photo</span>
+        )}
+      </label>
+      <p className="photo-note">
+        The estimate pre-fills the Manual tab so you can confirm or correct it before logging — it’s
+        never logged automatically.
+      </p>
+      {status === 'error' && <p className="photo-error">{message}</p>}
     </div>
   )
 }
@@ -160,18 +258,20 @@ function SavedFoodRow({
 function ManualForm({
   date,
   slot,
+  initial,
   onLogged,
 }: {
   date: string
   slot: MealSlot
+  initial?: ManualInitial | null
   onLogged: () => void
 }) {
-  const [name, setName] = useState('')
-  const [cal, setCal] = useState('')
-  const [p, setP] = useState('')
-  const [c, setC] = useState('')
-  const [f, setF] = useState('')
-  const [portion, setPortion] = useState('')
+  const [name, setName] = useState(initial?.name ?? '')
+  const [cal, setCal] = useState(initial?.cal ?? '')
+  const [p, setP] = useState(initial?.p ?? '')
+  const [c, setC] = useState(initial?.c ?? '')
+  const [f, setF] = useState(initial?.f ?? '')
+  const [portion, setPortion] = useState(initial?.portion ?? '')
   const [reuse, setReuse] = useState(false)
   const [servingG, setServingG] = useState('100')
 
@@ -191,6 +291,9 @@ function ManualForm({
 
   return (
     <div className="sheet-body">
+      {initial && (
+        <p className="photo-confirm">✨ Photo estimate — check the numbers and correct anything before logging.</p>
+      )}
       <input className="food-search" placeholder="Food name" value={name} onChange={(e) => setName(e.target.value)} />
       <div className="manual-grid">
         <label>

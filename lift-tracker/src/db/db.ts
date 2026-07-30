@@ -24,6 +24,7 @@ const DEFAULT_SETTINGS: Settings = {
   programStartDate: DEFAULT_START,
   weightUnit: 'kg',
   goalMode: 'lean-gain',
+  anthropicModel: 'claude-sonnet-5',
 }
 
 // Example stats so the Fuel screen has something to compute from on first run.

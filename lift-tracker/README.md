@@ -43,7 +43,11 @@ Built phase by phase — see the build brief.
   meals, or manual entry with a "save as reusable" toggle. Running totals update
   the Fuel rings/bars live; entries are listed per slot and deletable; a slot's
   entries can be saved as a one-tap Meal. Over-target reads "0 left" (never a
-  failure state). Photo estimation intentionally deferred.
+  failure state).
+  - **Photo estimation** (added after the initial build): with an Anthropic API
+    key (stored on-device, set in the Stats panel), a meal photo is sent
+    directly to the Anthropic API and the estimate pre-fills the Manual tab for
+    confirmation/correction — never logged automatically.
 - **Phase 7 — Training-day nutrition guidance** ✅
   Contextual fuelling cards on the Today screen, driven by the day type: a
   pre-lift carb prompt (flags when little has been logged), a post-lift protein
