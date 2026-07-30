@@ -1,0 +1,243 @@
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-2: #273449;
+  --border: #334155;
+  --text: #e2e8f0;
+  --text-dim: #94a3b8;
+  --accent: #38bdf8;
+  --accent-strong: #0ea5e9;
+  --main-lift: #fbbf24;
+  --radius: 14px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 16px 16px calc(32px + env(safe-area-inset-bottom));
+}
+
+/* ---- Header ---- */
+.app-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.app-header h1 {
+  font-size: 20px;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+.phase-pill {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--accent);
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* ---- Program status strip ---- */
+.status-strip {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.status-card {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.status-card .label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+.status-card .value {
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+.status-card .sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* ---- Day switcher ---- */
+.day-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.day-tab {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 10px;
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+}
+.day-tab.active {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--accent);
+}
+.day-tab .today-dot {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ---- Session ---- */
+.session-title {
+  margin: 0 0 2px;
+  font-size: 17px;
+}
+.session-sub {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+
+.exercise-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.exercise-card.main-lift {
+  border-left: 3px solid var(--main-lift);
+}
+.exercise-main {
+  min-width: 0;
+}
+.exercise-name {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.exercise-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+.tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.tag.main {
+  color: var(--main-lift);
+  background: rgba(251, 191, 36, 0.12);
+}
+.tag.superset {
+  color: var(--accent);
+  background: rgba(56, 189, 248, 0.12);
+}
+.exercise-note {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+.prescription {
+  text-align: right;
+  white-space: nowrap;
+}
+.prescription .reps {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.prescription .adjusted {
+  display: block;
+  font-size: 10px;
+  color: var(--main-lift);
+  margin-top: 2px;
+}
+
+.superset-bracket {
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+  margin-bottom: 10px;
+}
+.superset-bracket .exercise-card {
+  margin-bottom: 6px;
+}
+.superset-label {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+  margin: 0 0 6px 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.footnote {
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+/* ---- Settings row ---- */
+.settings-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.settings-row label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.settings-row input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 13px;
+}
