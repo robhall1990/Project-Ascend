@@ -29,6 +29,10 @@ export class LiftTrackerDB extends Dexie {
       sessions: 'id, date, day',
       setLogs: 'id, sessionId, exerciseId',
     })
+    // v2: index session lifecycle fields for ordering / rotation queries.
+    this.version(2).stores({
+      sessions: 'id, date, day, createdAt, completedAt',
+    })
   }
 }
 

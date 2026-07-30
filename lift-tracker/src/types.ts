@@ -54,9 +54,15 @@ export interface Settings {
 
 export interface Session {
   id: string
+  /** ISO date (YYYY-MM-DD) the session was performed. */
   date: string
   day: DayNumber
+  /** Phase in effect when the session was started (captured for history). */
   phaseId: string
+  /** Epoch ms; used for ordering and rotation. */
+  createdAt: number
+  /** Epoch ms once finished; undefined while a session is in progress. */
+  completedAt?: number
 }
 
 export interface SetLog {

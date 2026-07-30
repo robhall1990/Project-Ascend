@@ -10,7 +10,13 @@ Built phase by phase — see the build brief.
   Seeds the 4-day upper-body program into IndexedDB, computes today's session
   from the program start date + 4-day rotation, and shows each exercise's target
   sets × rep-range for the current phase (Phase 3 auto-drops the main lifts to
-  3–5 reps). No logging yet.
+  3–5 reps).
+- **Phase 2 — Training logging** ✅
+  Start / resume / finish / discard a session. Per-set weight, reps and optional
+  RPE written straight to IndexedDB as you type; weight carries down from the
+  previous set and pre-fills from last time. Adjustable rest timer between sets.
+  History tab lists past sessions; tap to reopen and edit. The rotation pointer
+  advances only when a session is finished.
 
 ## Develop
 

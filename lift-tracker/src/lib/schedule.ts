@@ -49,12 +49,20 @@ export function phaseForWeek(week: number, phases: ProgramPhase[]): ProgramPhase
 }
 
 /**
- * Which day (1-4) comes next in the rotation. Until logging exists (Phase 2)
- * there are no completed sessions, so this is Day 1; once sessions are logged
- * it advances by count through the 4-day cycle.
+ * Which day (1-4) comes next in the rotation, given the day of the most recent
+ * completed session. No history yet → Day 1; otherwise the following day, wrapping.
  */
-export function nextDayInRotation(completedSessions: number): DayNumber {
-  return ((completedSessions % 4) + 1) as DayNumber
+export function nextDayAfter(lastDay: DayNumber | undefined): DayNumber {
+  if (!lastDay) return 1
+  return ((lastDay % 4) + 1) as DayNumber
+}
+
+/** Today as a local YYYY-MM-DD string. */
+export function todayISO(today = new Date()): string {
+  const y = today.getFullYear()
+  const m = String(today.getMonth() + 1).padStart(2, '0')
+  const d = String(today.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 /** Rep range for an exercise after any current-phase adjustment. */
