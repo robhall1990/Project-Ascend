@@ -4,8 +4,9 @@ import { db } from './db/db'
 import { SessionLogView } from './components/SessionLogView'
 import { HistoryView } from './components/HistoryView'
 import { TodayScreen } from './components/TodayScreen'
+import { ProgressScreen } from './components/ProgressScreen'
 
-type Tab = 'today' | 'history'
+type Tab = 'today' | 'progress' | 'history'
 
 export function App() {
   const settings = useLiveQuery(() => db.settings.get('singleton'))
@@ -53,11 +54,16 @@ export function App() {
         />
       )}
 
+      {tab === 'progress' && <ProgressScreen settings={settings} phases={phases} />}
+
       {tab === 'history' && <HistoryView onOpen={(id) => openLog(id, 'history')} />}
 
       <nav className="bottom-nav">
         <button className={tab === 'today' ? 'active' : ''} onClick={() => setTab('today')}>
           Today
+        </button>
+        <button className={tab === 'progress' ? 'active' : ''} onClick={() => setTab('progress')}>
+          Progress
         </button>
         <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>
           History

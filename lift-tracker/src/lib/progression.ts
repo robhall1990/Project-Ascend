@@ -172,6 +172,71 @@ export async function e1rmSeries(exerciseId: string): Promise<E1RMPoint[]> {
   return points
 }
 
+/** One completed session's logged sets for an exercise, newest last. */
+export interface HistorySession {
+  date: string
+  createdAt: number
+  sets: Array<{ setNumber: number; weight: number; reps: number; rpe?: number }>
+  topWeight: number
+  bestE1rm: number
+}
+
+export async function exerciseHistory(exerciseId: string): Promise<HistorySession[]> {
+  const completed = (await db.sessions.where('createdAt').above(0).sortBy('createdAt')).filter(
+    (s) => s.completedAt != null,
+  )
+  const out: HistorySession[] = []
+  for (const s of completed) {
+    const sets = (
+      await db.setLogs
+        .where('sessionId')
+        .equals(s.id)
+        .and((l) => l.exerciseId === exerciseId && (l.weight > 0 || l.reps > 0))
+        .toArray()
+    ).sort((a, b) => a.setNumber - b.setNumber)
+    if (sets.length === 0) continue
+    out.push({
+      date: s.date,
+      createdAt: s.createdAt,
+      sets: sets.map((x) => ({ setNumber: x.setNumber, weight: x.weight, reps: x.reps, rpe: x.rpe })),
+      topWeight: Math.max(...sets.map((x) => x.weight)),
+      bestE1rm: Math.max(...sets.map((x) => epley1RM(x.weight, x.reps))),
+    })
+  }
+  return out
+}
+
+export interface TrendRow {
+  date: string
+  t: number
+  [exerciseId: string]: number | string
+}
+
+/**
+ * Estimated-1RM trend for the four main lifts, merged into one row set keyed by
+ * session time so each lift becomes a line (gaps where it wasn't trained).
+ */
+export async function mainLiftsTrend(): Promise<{ mains: Exercise[]; rows: TrendRow[] }> {
+  const order = ['d1-bench', 'd1-ohp', 'd3-pullup', 'd2-squat']
+  const mains = (await db.exercises.toArray())
+    .filter((e) => e.isMainLift)
+    .sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))
+
+  const rowMap = new Map<number, TrendRow>()
+  for (const ex of mains) {
+    for (const p of await e1rmSeries(ex.id)) {
+      let row = rowMap.get(p.createdAt)
+      if (!row) {
+        row = { date: p.date, t: p.createdAt }
+        rowMap.set(p.createdAt, row)
+      }
+      row[ex.id] = Math.round(p.e1rm * 10) / 10
+    }
+  }
+  const rows = [...rowMap.values()].sort((a, b) => a.t - b.t)
+  return { mains, rows }
+}
+
 /** Current best estimated 1RM for each main lift. */
 export async function mainLiftBests(): Promise<
   Array<{ exercise: Exercise; best: number; date?: string }>

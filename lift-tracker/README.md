@@ -24,6 +24,11 @@ Built phase by phase — see the build brief.
   pre-fill the logging inputs. Estimated 1RM (Epley) tracked for the four main
   lifts and shown on the home strength strip. Deload weeks (6/12/18 + taper)
   auto-flag, cut suggested volume to 2 sets, and hold weight.
+- **Phase 4 — Training history & progress** ✅
+  A Progress tab with a phase timeline (current phase + weeks to year-end), a
+  Recharts estimated-1RM trend for the four main lifts (colourblind-validated
+  palette, legend), and a per-exercise history view — top-set weight over time
+  plus a session-by-session list of the actual sets logged.
 
 ## Develop
 
