@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie'
 import type {
   BodyweightLog,
+  CardioActivity,
   DayNutrition,
   Exercise,
   FoodEntry,
@@ -53,6 +54,7 @@ export class LiftTrackerDB extends Dexie {
   foodEntries!: Table<FoodEntry, string>
   foodItems!: Table<FoodItem, string>
   meals!: Table<Meal, string>
+  cardioActivities!: Table<CardioActivity, string>
 
   constructor() {
     super('lift-tracker')
@@ -75,6 +77,10 @@ export class LiftTrackerDB extends Dexie {
       foodEntries: 'id, date, slot, createdAt',
       foodItems: 'id, name',
       meals: 'id, name',
+    })
+    // v4: cardio activities synced from intervals.icu.
+    this.version(4).stores({
+      cardioActivities: 'id, date, syncedAt',
     })
   }
 }

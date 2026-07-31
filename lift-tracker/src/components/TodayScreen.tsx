@@ -16,6 +16,7 @@ import { startSession } from '../lib/sessionRepo'
 import { useToast } from '../lib/toast'
 import { SessionView } from './SessionView'
 import { GuidanceCards } from './GuidanceCards'
+import { CardioCard } from './CardioCard'
 
 interface Props {
   settings: Settings
@@ -176,6 +177,8 @@ export function TodayScreen({
           {activeDay !== todayDay && <span className="cta-sub">Previewing — not today’s session</span>}
         </button>
       )}
+
+      <CardioCard date={today} />
 
       <GuidanceCards
         cards={cards}

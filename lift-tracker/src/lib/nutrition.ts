@@ -143,7 +143,8 @@ export async function getDayNutrition(date: string): Promise<DayNutrition | unde
 
 export async function setDayType(date: string, dayType: DayType): Promise<void> {
   const existing = await db.dayNutrition.get(date)
-  await db.dayNutrition.put({ ...(existing ?? { date }), date, dayType })
+  // Mark as manual so an intervals.icu sync never overwrites a deliberate choice.
+  await db.dayNutrition.put({ ...(existing ?? { date }), date, dayType, dayTypeSource: 'manual' })
 }
 
 export async function setEndurance(
@@ -158,6 +159,7 @@ export async function setEndurance(
     dayType: 'endurance',
     enduranceMinutes: minutes,
     enduranceIntensity: intensity,
+    dayTypeSource: 'manual',
   })
 }
 

@@ -7,6 +7,7 @@ import { exportBackup, importBackup, resetLoggedData, setWeightUnit, updateSetti
 import { round1, toDisplayWeight, toKg } from '../lib/units'
 import { programPosition } from '../lib/schedule'
 import { DEFAULT_MODEL } from '../lib/aiPhoto'
+import { syncIntervals } from '../lib/intervals'
 import { useToast } from '../lib/toast'
 import { ConfirmDialog } from './Modal'
 
@@ -25,6 +26,7 @@ export function SettingsScreen({ settings, onBack }: { settings: Settings; onBac
   const [confirming, setConfirming] = useState<'reset' | 'import' | null>(null)
   const [pendingImport, setPendingImport] = useState<unknown>(null)
   const [testing, setTesting] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
   if (!stats || !bw) return <div className="app">Loading…</div>
 
@@ -73,6 +75,33 @@ export function SettingsScreen({ settings, onBack }: { settings: Settings; onBac
       setConfirming('import')
     } catch {
       toast('That file isn’t valid JSON', 'error')
+    }
+  }
+
+  async function runSync() {
+    if (!settings.intervalsApiKey || !settings.intervalsAthleteId) return
+    setSyncing(true)
+    try {
+      const newest = new Date()
+      const oldest = new Date()
+      oldest.setDate(oldest.getDate() - 30)
+      const iso = (d: Date) => d.toISOString().slice(0, 10)
+      const r = await syncIntervals(
+        settings.intervalsApiKey,
+        settings.intervalsAthleteId,
+        iso(oldest),
+        iso(newest),
+      )
+      toast(
+        r.imported === 0
+          ? 'No cardio activities found in the last 30 days'
+          : `Synced ${r.imported} activit${r.imported === 1 ? 'y' : 'ies'} · ${r.daysUpdated} day${r.daysUpdated === 1 ? '' : 's'} set to endurance`,
+        'success',
+      )
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Sync failed', 'error')
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -240,6 +269,45 @@ export function SettingsScreen({ settings, onBack }: { settings: Settings; onBac
         <button className="btn ghost full" disabled={!settings.anthropicApiKey || testing} onClick={testKey}>
           {testing ? 'Testing…' : 'Test API key'}
         </button>
+      </Section>
+
+      {/* ---- intervals.icu ---- */}
+      <Section
+        title="intervals.icu sync"
+        hint="Pulls your runs and rides so endurance days fuel themselves. Credentials stay on this device. Key: intervals.icu → Settings → Developer."
+      >
+        <Row label="API key">
+          <input
+            type="password"
+            autoComplete="off"
+            placeholder="your API key"
+            defaultValue={settings.intervalsApiKey ?? ''}
+            onBlur={(e) => patch({ intervalsApiKey: e.target.value.trim() || undefined }, 'Saved')}
+          />
+        </Row>
+        <Row label="Athlete ID" hint="e.g. i123456">
+          <input
+            autoComplete="off"
+            placeholder="i123456"
+            defaultValue={settings.intervalsAthleteId ?? ''}
+            onBlur={(e) => patch({ intervalsAthleteId: e.target.value.trim() || undefined }, 'Saved')}
+          />
+        </Row>
+        <button
+          className="btn ghost full"
+          disabled={!settings.intervalsApiKey || !settings.intervalsAthleteId || syncing}
+          onClick={runSync}
+        >
+          {syncing ? 'Syncing…' : '⟳ Sync last 30 days'}
+        </button>
+        <p className="settings-note">
+          {settings.intervalsLastSync
+            ? `Last synced ${new Date(settings.intervalsLastSync).toLocaleString()}`
+            : 'Not synced yet.'}{' '}
+          Browser-to-intervals.icu calls depend on their CORS policy, which couldn’t be verified
+          from the build environment — if the sync is refused you’ll get a clear message rather
+          than a silent failure.
+        </p>
       </Section>
 
       {/* ---- Data ---- */}

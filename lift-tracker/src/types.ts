@@ -52,6 +52,11 @@ export interface Settings {
   anthropicApiKey?: string
   /** Model used for photo estimation. */
   anthropicModel?: string
+  /** intervals.icu credentials (on-device only) for cardio sync. */
+  intervalsApiKey?: string
+  intervalsAthleteId?: string
+  /** Epoch ms of the last successful intervals.icu sync. */
+  intervalsLastSync?: number
 }
 
 // ---- Declared now, used in later phases -------------------------------------
@@ -127,6 +132,29 @@ export interface DayNutrition {
   override?: { calories: number; protein: number; carbs: number; fat: number }
   /** Ids of training-nutrition guidance cards the user dismissed today. */
   dismissedGuidance?: string[]
+  /**
+   * Where the day type came from. A manual choice is never overwritten by an
+   * intervals.icu sync.
+   */
+  dayTypeSource?: 'manual' | 'intervals'
+}
+
+/** A cardio session pulled from intervals.icu (or entered by hand). */
+export interface CardioActivity {
+  /** "icu:<id>" for synced activities — the dedupe key. */
+  id: string
+  date: string
+  name: string
+  /** Normalised sport: Run / Ride / Swim / Other. */
+  sport: string
+  movingMinutes: number
+  distanceKm?: number
+  calories?: number
+  avgHr?: number
+  /** intervals.icu training load (TSS-like), when available. */
+  load?: number
+  source: 'intervals'
+  syncedAt: number
 }
 
 // Declared for later nutrition phases (food logging, meals).

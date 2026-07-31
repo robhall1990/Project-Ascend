@@ -120,6 +120,13 @@ export function FuelScreen({
             ))}
           </div>
 
+          {dayNut?.dayTypeSource === 'intervals' && (
+            <p className="sync-note">
+              ⟳ Set from intervals.icu — {dayNut.enduranceMinutes} min ({dayNut.enduranceIntensity}).
+              Tap a day type to override.
+            </p>
+          )}
+
           {dayType === 'endurance' && (
             <EnduranceControls
               minutes={dayNut?.enduranceMinutes ?? 60}
