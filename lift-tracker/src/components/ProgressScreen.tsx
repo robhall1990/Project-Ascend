@@ -11,11 +11,12 @@ import { E1RMChart, WeightHistoryChart, CombinedProgressCharts, SERIES_COLOR } f
 interface Props {
   settings: Settings
   phases: ProgramPhase[]
+  onOpenSettings: () => void
 }
 
 const emptyTrend = { mains: [], rows: [] }
 
-export function ProgressScreen({ settings, phases }: Props) {
+export function ProgressScreen({ settings, phases, onOpenSettings }: Props) {
   const pos = programPosition(settings.programStartDate)
   const currentPhase = phaseForWeek(pos.week, phases)
 
@@ -35,6 +36,9 @@ export function ProgressScreen({ settings, phases }: Props) {
     <div className="app">
       <header className="app-header">
         <h1>Progress</h1>
+        <button className="icon-btn" aria-label="Settings" onClick={onOpenSettings}>
+          ⚙
+        </button>
       </header>
 
       {/* Phase timeline */}

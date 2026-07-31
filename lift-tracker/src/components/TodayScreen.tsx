@@ -13,6 +13,7 @@ import {
 import { mainLiftBests, suggestionsForDay, type Suggestion } from '../lib/progression'
 import { dismissGuidance, guidanceCards, resolveTarget } from '../lib/nutrition'
 import { startSession } from '../lib/sessionRepo'
+import { useToast } from '../lib/toast'
 import { SessionView } from './SessionView'
 import { GuidanceCards } from './GuidanceCards'
 
@@ -23,6 +24,7 @@ interface Props {
   sessions: Session[]
   onOpenLog: (id: string) => void
   onGoToFuel: (slot: MealSlot) => void
+  onOpenSettings: () => void
 }
 
 const SHORT_LABEL: Record<string, string> = {
@@ -39,7 +41,9 @@ export function TodayScreen({
   sessions,
   onOpenLog,
   onGoToFuel,
+  onOpenSettings,
 }: Props) {
+  const { run } = useToast()
   const [selectedDay, setSelectedDay] = useState<DayNumber | null>(null)
   const today = todayISO()
 
@@ -99,19 +103,27 @@ export function TodayScreen({
   }, [stats, bw, dayNut, todayEntries, sessions, today, settings.goalMode])
 
   async function startToday() {
-    const s = await startSession(activeDay, currentPhase?.id ?? phases[0].id)
-    onOpenLog(s.id)
+    const s = await run(
+      () => startSession(activeDay, currentPhase?.id ?? phases[0].id),
+      'Couldn’t start the session',
+    )
+    if (s) onOpenLog(s.id)
   }
 
   return (
     <div className="app">
       <header className="app-header">
         <h1>Lift Tracker</h1>
-        {currentPhase && (
-          <span className="phase-pill">
-            Phase {phases.findIndex((p) => p.id === currentPhase.id) + 1} · {currentPhase.name}
-          </span>
-        )}
+        <div className="header-right">
+          {currentPhase && (
+            <span className="phase-pill">
+              Phase {phases.findIndex((p) => p.id === currentPhase.id) + 1} · {currentPhase.name}
+            </span>
+          )}
+          <button className="icon-btn" aria-label="Settings" onClick={onOpenSettings}>
+            ⚙
+          </button>
+        </div>
       </header>
 
       <div className="status-strip">
@@ -168,7 +180,7 @@ export function TodayScreen({
       <GuidanceCards
         cards={cards}
         onAction={(slot) => onGoToFuel(slot)}
-        onDismiss={(id) => dismissGuidance(today, id)}
+        onDismiss={(id) => run(() => dismissGuidance(today, id), 'Couldn’t dismiss that card')}
       />
 
       <nav className="day-tabs">

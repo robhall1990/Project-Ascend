@@ -7,6 +7,7 @@ import { HistoryView } from './components/HistoryView'
 import { TodayScreen } from './components/TodayScreen'
 import { ProgressScreen } from './components/ProgressScreen'
 import { FuelScreen } from './components/FuelScreen'
+import { SettingsScreen } from './components/SettingsScreen'
 
 type Tab = 'today' | 'fuel' | 'progress' | 'history'
 
@@ -23,6 +24,7 @@ export function App() {
   const [logSessionId, setLogSessionId] = useState<string | null>(null)
   const [logReturnTo, setLogReturnTo] = useState<Tab>('today')
   const [fuelInitialSlot, setFuelInitialSlot] = useState<MealSlot | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
 
   if (!settings || !exercises || !phases || sessions === undefined) {
     return <div className="app">Loading…</div>
@@ -40,10 +42,16 @@ export function App() {
     )
   }
 
+  if (showSettings) {
+    return <SettingsScreen settings={settings} onBack={() => setShowSettings(false)} />
+  }
+
   function openLog(id: string, from: Tab) {
     setLogReturnTo(from)
     setLogSessionId(id)
   }
+
+  const openSettings = () => setShowSettings(true)
 
   return (
     <>
@@ -54,6 +62,7 @@ export function App() {
           phases={phases}
           sessions={sessions}
           onOpenLog={(id) => openLog(id, 'today')}
+          onOpenSettings={openSettings}
           onGoToFuel={(slot) => {
             setFuelInitialSlot(slot)
             setTab('fuel')
@@ -66,10 +75,13 @@ export function App() {
           settings={settings}
           initialSlot={fuelInitialSlot}
           onInitialSlotConsumed={() => setFuelInitialSlot(null)}
+          onOpenSettings={openSettings}
         />
       )}
 
-      {tab === 'progress' && <ProgressScreen settings={settings} phases={phases} />}
+      {tab === 'progress' && (
+        <ProgressScreen settings={settings} phases={phases} onOpenSettings={openSettings} />
+      )}
 
       {tab === 'history' && <HistoryView onOpen={(id) => openLog(id, 'history')} />}
 

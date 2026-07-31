@@ -13,6 +13,7 @@ import {
   type Macros,
 } from '../lib/foodRepo'
 import { analyzeMealPhoto, fileToBase64Jpeg, type PhotoEstimate } from '../lib/aiPhoto'
+import { useToast } from '../lib/toast'
 
 export const SLOT_LABEL: Record<MealSlot, string> = {
   'pre-training': 'Pre-training',
@@ -46,6 +47,7 @@ export interface ManualInitial {
 }
 
 export function FoodLogSheet({ date, initialSlot, settings, onClose }: Props) {
+  const { run, toast } = useToast()
   const [slot, setSlot] = useState<MealSlot>(initialSlot)
   const [tab, setTab] = useState<'saved' | 'manual' | 'photo'>('saved')
   const [search, setSearch] = useState('')
@@ -127,17 +129,17 @@ export function FoodLogSheet({ date, initialSlot, settings, onClose }: Props) {
                     {m.calories} kcal · P{m.protein} C{m.carbs} F{m.fat}
                   </div>
                 </div>
-                <button className="add-btn" onClick={() => logMeal(date, slot, m)}>
+                <button className="add-btn" onClick={() => run(() => logMeal(date, slot, m), 'Couldn’t log that meal')}>
                   Add
                 </button>
-                <button className="del-x" aria-label="Delete meal" onClick={() => deleteMeal(m.id)}>
+                <button className="del-x" aria-label="Delete meal" onClick={() => run(() => deleteMeal(m.id), 'Couldn’t delete that meal')}>
                   ✕
                 </button>
               </div>
             ))}
 
             {items.map((item) => (
-              <SavedFoodRow key={item.id} item={item} onAdd={(g) => logFoodItem(date, slot, item, g)} onDelete={() => deleteFoodItem(item.id)} />
+              <SavedFoodRow key={item.id} item={item} onAdd={(g) => run(() => logFoodItem(date, slot, item, g), 'Couldn’t log that food')} onDelete={() => run(() => deleteFoodItem(item.id), 'Couldn’t delete that food')} />
             ))}
           </div>
         ) : tab === 'photo' ? (
@@ -145,9 +147,17 @@ export function FoodLogSheet({ date, initialSlot, settings, onClose }: Props) {
         ) : (
           <ManualForm
             key={prefillKey}
-            date={date}
             slot={slot}
             initial={prefill}
+            onAdd={async ({ name, macros, portion, reuse, servingG }) => {
+              const ok = await run(async () => {
+                await addManualEntry({ date, slot, name, macros, portion })
+                if (reuse) await saveFoodItem({ name, servingGrams: servingG, macros })
+                return true
+              }, 'Couldn’t log that food')
+              if (ok) toast(`Added to ${SLOT_LABEL[slot]}`, 'success')
+              return !!ok
+            }}
             onLogged={() => {
               setPrefill(null)
               setTab('saved')
@@ -173,7 +183,7 @@ function PhotoTab({
     return (
       <div className="sheet-body">
         <p className="chart-empty">
-          📷 Add your Anthropic API key in <b>Stats</b> (top-right) to estimate a meal from a photo.
+          📷 Add your Anthropic API key in <b>Settings</b> (⚙, top-right) to estimate a meal from a photo.
           It’s stored only on this device and sent directly to Anthropic. Estimates are a starting
           point — you always confirm before logging.
         </p>
@@ -255,15 +265,23 @@ function SavedFoodRow({
   )
 }
 
+interface ManualSubmit {
+  name: string
+  macros: Macros
+  portion?: string
+  reuse: boolean
+  servingG: number
+}
+
 function ManualForm({
-  date,
   slot,
   initial,
+  onAdd,
   onLogged,
 }: {
-  date: string
   slot: MealSlot
   initial?: ManualInitial | null
+  onAdd: (input: ManualSubmit) => Promise<boolean>
   onLogged: () => void
 }) {
   const [name, setName] = useState(initial?.name ?? '')
@@ -284,9 +302,8 @@ function ManualForm({
       carbs: Math.round(numOr0(c)),
       fat: Math.round(numOr0(f)),
     }
-    await addManualEntry({ date, slot, name: name.trim(), macros, portion: portion.trim() || undefined })
-    if (reuse) await saveFoodItem({ name: name.trim(), servingGrams: numOr0(servingG) || 100, macros })
-    onLogged()
+    const ok = await onAdd({ name: name.trim(), macros, portion: portion.trim() || undefined, reuse, servingG: numOr0(servingG) || 100 })
+    if (ok) onLogged()
   }
 
   return (

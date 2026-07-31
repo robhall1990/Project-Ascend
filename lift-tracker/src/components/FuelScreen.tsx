@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import type { DayType, EnduranceIntensity, FoodEntry, GoalMode, MealSlot, Settings } from '../types'
+import type { DayType, EnduranceIntensity, FoodEntry, MealSlot, Settings } from '../types'
 import { todayISO } from '../lib/schedule'
 import {
   GOAL_LABEL,
@@ -12,8 +12,9 @@ import {
 } from '../lib/nutrition'
 import { deleteEntry, logMeal, saveMealFromEntries, suggestMeals } from '../lib/foodRepo'
 import type { Meal } from '../types'
+import { useToast } from '../lib/toast'
 import { ProteinRing, MacroBar } from './MacroRings'
-import { StatsForm } from './StatsForm'
+import { PromptDialog } from './Modal'
 import { FoodLogSheet, SLOT_LABEL } from './FoodLogSheet'
 
 const DAY_TYPES: DayType[] = ['lift', 'endurance', 'rest']
@@ -22,7 +23,6 @@ const DAY_TYPE_LABEL: Record<DayType, string> = {
   endurance: 'Endurance',
   rest: 'Rest',
 }
-const GOALS: GoalMode[] = ['lean-gain', 'recomposition', 'maintenance']
 const INTENSITIES: EnduranceIntensity[] = ['easy', 'moderate', 'hard']
 const SLOT_ORDER: MealSlot[] = ['pre-training', 'breakfast', 'lunch', 'post-training', 'dinner', 'snack']
 
@@ -46,20 +46,23 @@ export function FuelScreen({
   settings,
   initialSlot = null,
   onInitialSlotConsumed,
+  onOpenSettings,
 }: {
   settings: Settings
   initialSlot?: MealSlot | null
   onInitialSlotConsumed?: () => void
+  onOpenSettings: () => void
 }) {
   const today = todayISO()
+  const { run } = useToast()
   const stats = useLiveQuery(() => db.userStats.get('singleton'))
   const bw = useLiveQuery(() => db.bodyweightLogs.orderBy('createdAt').last())
   const dayNut = useLiveQuery(() => db.dayNutrition.get(today), [today])
   const entries = useLiveQuery(() => db.foodEntries.where('date').equals(today).toArray(), [today], [])
   const meals = useLiveQuery(() => db.meals.toArray(), [], [])
 
-  const [editingStats, setEditingStats] = useState(false)
   const [sheetSlot, setSheetSlot] = useState<MealSlot | null>(null)
+  const [namingMeal, setNamingMeal] = useState<{ slot: MealSlot; entries: FoodEntry[] } | null>(null)
 
   // Open the log sheet at the slot requested from a home-screen guidance card.
   useEffect(() => {
@@ -91,34 +94,26 @@ export function FuelScreen({
     <div className="app">
       <header className="app-header">
         <h1>Fuel</h1>
-        <button className="link-btn" onClick={() => setEditingStats((v) => !v)}>
-          {editingStats ? 'Close' : 'Stats'}
+        <button className="icon-btn" aria-label="Settings" onClick={onOpenSettings}>
+          ⚙
         </button>
       </header>
 
-      {!stats.configured && !editingStats && (
-        <button className="setup-banner" onClick={() => setEditingStats(true)}>
+      {!stats.configured && (
+        <button className="setup-banner" onClick={onOpenSettings}>
           📏 Using example stats ({bodyweightKg} kg, {stats.heightCm} cm, {stats.age}). Tap to set
           your own so targets are accurate.
         </button>
       )}
 
-      {editingStats ? (
-        <StatsForm
-          stats={stats}
-          bodyweightKg={bodyweightKg}
-          settings={settings}
-          onClose={() => setEditingStats(false)}
-        />
-      ) : (
-        <>
+      <>
           {/* Day type */}
           <div className="segmented">
             {DAY_TYPES.map((d) => (
               <button
                 key={d}
                 className={dayType === d ? 'active' : ''}
-                onClick={() => setDayType(today, d)}
+                onClick={() => run(() => setDayType(today, d), 'Couldn’t change day type')}
               >
                 {DAY_TYPE_LABEL[d]}
               </button>
@@ -129,7 +124,7 @@ export function FuelScreen({
             <EnduranceControls
               minutes={dayNut?.enduranceMinutes ?? 60}
               intensity={dayNut?.enduranceIntensity ?? 'moderate'}
-              onChange={(m, i) => setEndurance(today, m, i)}
+              onChange={(m, i) => run(() => setEndurance(today, m, i), 'Couldn’t save session length')}
             />
           )}
 
@@ -152,8 +147,8 @@ export function FuelScreen({
           <FoodLog
             entries={entries ?? []}
             onAddToSlot={(s) => setSheetSlot(s)}
-            onDelete={(id) => deleteEntry(id)}
-            onSaveMeal={(name, es) => saveMealFromEntries(name, es)}
+            onDelete={(id) => run(() => deleteEntry(id), 'Couldn’t delete that entry')}
+            onSaveMeal={(slot, es) => setNamingMeal({ slot, entries: es })}
           />
 
           <MealSuggestions
@@ -164,33 +159,25 @@ export function FuelScreen({
               carbs: Math.max(target.carbs - consumed.carbs, 0),
               fat: Math.max(target.fat - consumed.fat, 0),
             }}
-            onLog={(m) => logMeal(today, guessSlot(), m)}
+            onLog={(m) => run(() => logMeal(today, guessSlot(), m), 'Couldn’t log that meal')}
           />
 
-          {/* Goal + rationale */}
-          <div className="goal-row">
-            <span className="goal-label">Goal</span>
-            <div className="segmented small">
-              {GOALS.map((g) => (
-                <button
-                  key={g}
-                  className={settings.goalMode === g ? 'active' : ''}
-                  onClick={() => db.settings.update('singleton', { goalMode: g })}
-                >
-                  {GOAL_LABEL[g]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <p className="fuel-rationale">
-            Maintenance ≈ {maintenance} kcal (Mifflin–St Jeor × activity).{' '}
-            {settings.goalMode === 'lean-gain' ? '+10% for lean gain. ' : 'Held at maintenance. '}
-            Protein {stats.proteinPerKg} g/kg · fat ~25% of calories · carbs flex by day type
-            {dayType === 'endurance' ? ' (extra carbs added for today’s session).' : dayType === 'rest' ? ' (carbs trimmed for rest).' : '.'}
-          </p>
+          {/* How today's target was derived — goal itself lives in Settings */}
+          <button className="rationale-card" onClick={onOpenSettings}>
+            <span className="rationale-goal">{GOAL_LABEL[settings.goalMode]}</span>
+            <span className="rationale-text">
+              Maintenance ≈ {maintenance} kcal (Mifflin–St Jeor × activity).{' '}
+              {settings.goalMode === 'lean-gain' ? '+10% for lean gain. ' : 'Held at maintenance. '}
+              Protein {stats.proteinPerKg} g/kg · fat ~25% of calories · carbs flex by day type
+              {dayType === 'endurance'
+                ? ' (extra carbs added for today’s session).'
+                : dayType === 'rest'
+                  ? ' (carbs trimmed for rest).'
+                  : '.'}
+            </span>
+            <span className="rationale-link">Change goal & stats →</span>
+          </button>
         </>
-      )}
 
       {sheetSlot && (
         <FoodLogSheet
@@ -198,6 +185,20 @@ export function FuelScreen({
           initialSlot={sheetSlot}
           settings={settings}
           onClose={() => setSheetSlot(null)}
+        />
+      )}
+
+      {namingMeal && (
+        <PromptDialog
+          title={`Save ${SLOT_LABEL[namingMeal.slot].toLowerCase()} as a meal`}
+          placeholder="e.g. Post-gym shake & oats"
+          confirmLabel="Save meal"
+          onCancel={() => setNamingMeal(null)}
+          onSubmit={async (name) => {
+            const items = namingMeal.entries
+            setNamingMeal(null)
+            await run(() => saveMealFromEntries(name, items), 'Couldn’t save that meal')
+          }}
         />
       )}
     </div>
@@ -213,7 +214,7 @@ function FoodLog({
   entries: FoodEntry[]
   onAddToSlot: (slot: MealSlot) => void
   onDelete: (id: string) => void
-  onSaveMeal: (name: string, entries: FoodEntry[]) => void
+  onSaveMeal: (slot: MealSlot, entries: FoodEntry[]) => void
 }) {
   const bySlot = SLOT_ORDER.map((slot) => ({
     slot,
@@ -224,11 +225,6 @@ function FoodLog({
     return <p className="fuel-empty">Nothing logged yet today. Tap ＋ Log food to start.</p>
   }
 
-  function saveAsMeal(slot: MealSlot, items: FoodEntry[]) {
-    const name = prompt(`Name this meal (${SLOT_LABEL[slot]})`)?.trim()
-    if (name) onSaveMeal(name, items)
-  }
-
   return (
     <div className="food-log">
       {bySlot.map(({ slot, items }) => (
@@ -237,7 +233,7 @@ function FoodLog({
             <span className="food-slot-title">{SLOT_LABEL[slot]}</span>
             <div className="food-slot-actions">
               {items.length > 1 && (
-                <button className="mini-btn" onClick={() => saveAsMeal(slot, items)}>
+                <button className="mini-btn" onClick={() => onSaveMeal(slot, items)}>
                   Save as meal
                 </button>
               )}

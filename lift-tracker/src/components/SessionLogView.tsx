@@ -14,7 +14,9 @@ import {
 import { suggestionsForDay, type Suggestion } from '../lib/progression'
 import { setLogId } from '../lib/id'
 import { discardSession, finishSession, saveSet } from '../lib/sessionRepo'
+import { useToast } from '../lib/toast'
 import { RestTimer } from './RestTimer'
+import { ConfirmDialog } from './Modal'
 
 const DEFAULT_REST = 120
 
@@ -36,6 +38,7 @@ const num = (s: string): number | null => {
 }
 
 export function SessionLogView({ sessionId, onExit }: Props) {
+  const { run } = useToast()
   const session = useLiveQuery(() => db.sessions.get(sessionId), [sessionId])
   const settings = useLiveQuery(() => db.settings.get('singleton'))
   const exercises = useLiveQuery(
@@ -82,6 +85,7 @@ export function SessionLogView({ sessionId, onExit }: Props) {
   const [done, setDone] = useState<Set<string>>(new Set())
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null)
   const [restTotal, setRestTotal] = useState(DEFAULT_REST)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
   const initRef = useRef<string | null>(null)
 
   // Initialise local input state from any already-persisted set logs.
@@ -139,14 +143,18 @@ export function SessionLogView({ sessionId, onExit }: Props) {
     const key = setLogId(sessionId, ex.id, setNumber)
     const next = { ...entryFor(key), [field]: value }
     setEntries((prev) => ({ ...prev, [key]: next }))
-    saveSet({
-      sessionId,
-      exerciseId: ex.id,
-      setNumber,
-      weight: num(next.weight),
-      reps: num(next.reps),
-      rpe: num(next.rpe),
-    })
+    run(
+      () =>
+        saveSet({
+          sessionId,
+          exerciseId: ex.id,
+          setNumber,
+          weight: num(next.weight),
+          reps: num(next.reps),
+          rpe: num(next.rpe),
+        }),
+      'Couldn’t save that set',
+    )
   }
 
   function logSet(ex: Exercise, setNumber: number) {
@@ -156,14 +164,18 @@ export function SessionLogView({ sessionId, onExit }: Props) {
     const next = { ...e, weight }
     setEntries((prev) => ({ ...prev, [key]: next }))
     setDone((prev) => new Set(prev).add(key))
-    saveSet({
-      sessionId,
-      exerciseId: ex.id,
-      setNumber,
-      weight: num(weight),
-      reps: num(e.reps),
-      rpe: num(e.rpe),
-    })
+    run(
+      () =>
+        saveSet({
+          sessionId,
+          exerciseId: ex.id,
+          setNumber,
+          weight: num(weight),
+          reps: num(e.reps),
+          rpe: num(e.rpe),
+        }),
+      'Couldn’t save that set',
+    )
     // Start rest timer (skip when editing a finished session).
     if (!isEditing) {
       setRestEndsAt(Date.now() + restTotal * 1000)
@@ -181,14 +193,11 @@ export function SessionLogView({ sessionId, onExit }: Props) {
   const doneCount = done.size
 
   async function onFinish() {
-    await finishSession(sessionId)
-    onExit()
-  }
-  async function onDiscard() {
-    if (confirm('Discard this session and all its logged sets?')) {
-      await discardSession(sessionId)
-      onExit()
-    }
+    const ok = await run(async () => {
+      await finishSession(sessionId)
+      return true
+    }, 'Couldn’t finish the session')
+    if (ok) onExit()
   }
 
   return (
@@ -296,10 +305,28 @@ export function SessionLogView({ sessionId, onExit }: Props) {
         ) : (
           <>
             <button className="btn primary" onClick={onFinish}>Finish session</button>
-            <button className="btn ghost danger" onClick={onDiscard}>Discard</button>
+            <button className="btn ghost danger" onClick={() => setConfirmDiscard(true)}>Discard</button>
           </>
         )}
       </div>
+
+      {confirmDiscard && (
+        <ConfirmDialog
+          title="Discard this session?"
+          body="Deletes the session and every set logged in it. This can’t be undone."
+          confirmLabel="Discard"
+          danger
+          onCancel={() => setConfirmDiscard(false)}
+          onConfirm={async () => {
+            setConfirmDiscard(false)
+            const ok = await run(async () => {
+              await discardSession(sessionId)
+              return true
+            }, 'Couldn’t discard the session')
+            if (ok) onExit()
+          }}
+        />
+      )}
 
       {restEndsAt != null && (
         <RestTimer
