@@ -7,7 +7,7 @@ import type {
   SetLog,
   WeightUnit,
 } from '../types'
-import { effectiveRepRange } from './schedule'
+import { effectiveTargetRange } from './schedule'
 
 /** Epley estimated one-rep max. Reps of 1 returns the weight itself. */
 export function epley1RM(weight: number, reps: number): number {
@@ -17,8 +17,17 @@ export function epley1RM(weight: number, reps: number): number {
 
 /** Weight jump for a successful double-progression step. */
 export function weightIncrement(ex: Exercise, unit: WeightUnit): number {
-  // Barbell lower-body / heavy pulls move in bigger jumps than upper accessories.
-  const bigJump = new Set(['d2-squat', 'd2-rdl', 'd3-rack-pull'])
+  // Barbell lower-body, carries and sleds move in bigger jumps than upper
+  // accessories — they're limited by load tolerance, not fine motor control.
+  const bigJump = new Set([
+    'd2-squat',
+    'd2-trapbar',
+    'd1-farmer',
+    'd2-frontcarry',
+    'd3-suitcase',
+    'd4-sled',
+    'd4-sandbag-carry',
+  ])
   if (unit === 'lb') return bigJump.has(ex.id) ? 10 : 5
   return bigJump.has(ex.id) ? 5 : 2.5
 }
@@ -71,8 +80,22 @@ export async function suggestionsForDay(
   const result: Record<string, Suggestion> = {}
 
   for (const ex of exercises) {
-    const current = effectiveRepRange(ex, currentPhase)
+    const current = effectiveTargetRange(ex, currentPhase)
     const increment = weightIncrement(ex, unit)
+
+    // Submax work (push-ups, dead hangs) has no target to progress against —
+    // the instruction is just to beat what you did, so no suggestion is made.
+    if (ex.submax) {
+      result[ex.id] = {
+        action: 'none',
+        hitTop: false,
+        increment,
+        targetMin: current.min,
+        targetMax: current.max,
+        reason: 'Work submaximally — beat last time where it feels right.',
+      }
+      continue
+    }
 
     const prev = await findLastPerformance(ex.id, completed)
     if (!prev) {
@@ -87,7 +110,7 @@ export async function suggestionsForDay(
       continue
     }
 
-    const rangeThen = effectiveRepRange(ex, phaseById.get(prev.session.phaseId))
+    const rangeThen = effectiveTargetRange(ex, phaseById.get(prev.session.phaseId))
     const last = workingWeight(prev.sets)
     const hitTop = prev.sets.length > 0 && prev.sets.every((s) => s.reps >= rangeThen.max)
 
@@ -105,7 +128,11 @@ export async function suggestionsForDay(
       continue
     }
 
+    const noun = ex.metric === 'distance' ? 'm' : ex.metric === 'time' ? 's' : 'reps'
+
     if (hitTop) {
+      // Carries progress distance first: only once the distance headroom is
+      // used up does load go up and distance drop back to base.
       result[ex.id] = {
         action: 'increase',
         lastWeight: last,
@@ -114,7 +141,10 @@ export async function suggestionsForDay(
         increment,
         targetMin: current.min,
         targetMax: current.max,
-        reason: `Hit ${rangeThen.max} on every set — add ${increment}${unit}, back to ${current.min} reps.`,
+        reason:
+          ex.metric === 'distance'
+            ? `Carried the full ${rangeThen.max}m on every set — add ${increment}${unit} and drop back to ${current.min}m.`
+            : `Hit ${rangeThen.max} on every set — add ${increment}${unit}, back to ${current.min} ${noun}.`,
       }
     } else {
       result[ex.id] = {
@@ -125,7 +155,10 @@ export async function suggestionsForDay(
         increment,
         targetMin: current.min,
         targetMax: current.max,
-        reason: `Hold ${last}${unit} until all sets reach ${current.max} reps.`,
+        reason:
+          ex.metric === 'distance'
+            ? `Hold ${last}${unit} and extend toward ${current.max}m before adding load.`
+            : `Hold ${last}${unit} until all sets reach ${current.max} ${noun}.`,
       }
     }
   }
@@ -154,8 +187,14 @@ export interface E1RMPoint {
   e1rm: number
 }
 
-/** Best estimated 1RM per completed session for one exercise, oldest → newest. */
+/**
+ * Best estimated 1RM per completed session for one exercise, oldest → newest.
+ * Only meaningful for rep-based lifts — Epley has nothing to say about a carry
+ * measured in metres or a hang measured in seconds.
+ */
 export async function e1rmSeries(exerciseId: string): Promise<E1RMPoint[]> {
+  const ex = await db.exercises.get(exerciseId)
+  if (ex && ex.metric !== 'reps') return []
   const completed = (await db.sessions.where('createdAt').above(0).sortBy('createdAt')).filter(
     (s) => s.completedAt != null,
   )
@@ -217,7 +256,7 @@ export interface TrendRow {
  * session time so each lift becomes a line (gaps where it wasn't trained).
  */
 export async function mainLiftsTrend(): Promise<{ mains: Exercise[]; rows: TrendRow[] }> {
-  const order = ['d1-bench', 'd1-ohp', 'd3-pullup', 'd2-squat']
+  const order = ['d1-ohp', 'd2-squat', 'd2-trapbar', 'd3-pullup']
   const mains = (await db.exercises.toArray())
     .filter((e) => e.isMainLift)
     .sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))

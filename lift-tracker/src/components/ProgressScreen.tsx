@@ -28,7 +28,7 @@ export function ProgressScreen({ settings, phases, onOpenSettings }: Props) {
     [],
   )
 
-  const [exId, setExId] = useState('d1-bench')
+  const [exId, setExId] = useState('d1-ohp')
   const history = useLiveQuery(() => exerciseHistory(exId), [exId], [])
   const selected = (exercises ?? []).find((e) => e.id === exId)
 

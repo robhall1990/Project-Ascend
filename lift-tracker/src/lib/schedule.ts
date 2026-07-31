@@ -1,4 +1,4 @@
-import type { DayNumber, Exercise, ProgramPhase } from '../types'
+import type { DayNumber, Exercise, Metric, ProgramPhase } from '../types'
 import { PROGRAM_WEEKS } from '../data/program'
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
@@ -65,21 +65,39 @@ export function todayISO(today = new Date()): string {
   return `${y}-${m}-${d}`
 }
 
-/** Rep range for an exercise after any current-phase adjustment. */
-export function effectiveRepRange(
+/** Target range for an exercise after any current-phase adjustment. */
+export function effectiveTargetRange(
   ex: Exercise,
   phase: ProgramPhase | undefined,
 ): { min: number; max: number; adjusted: boolean } {
   if (ex.isMainLift && phase?.mainLiftReps) {
     return { ...phase.mainLiftReps, adjusted: true }
   }
-  return { min: ex.repMin, max: ex.repMax, adjusted: false }
+  return { min: ex.targetMin, max: ex.targetMax, adjusted: false }
 }
 
-/** "4×4-6" style prescription string. */
-export function formatPrescription(setCount: number, min: number, max: number): string {
-  const reps = min === max ? `${min}` : `${min}-${max}`
-  return `${setCount}×${reps}`
+/** Short unit suffix for an exercise's metric. */
+export function metricUnit(metric: Metric): string {
+  return metric === 'distance' ? 'm' : metric === 'time' ? 's' : ''
+}
+
+/** Input label for logging a set of this exercise. */
+export function metricLabel(metric: Metric): string {
+  return metric === 'distance' ? 'Metres' : metric === 'time' ? 'Seconds' : 'Reps'
+}
+
+/** "4×4-6", "4×40m", "3× max" style prescription string. */
+export function formatPrescription(
+  setCount: number,
+  min: number,
+  max: number,
+  metric: Metric = 'reps',
+  submax = false,
+): string {
+  if (submax) return `${setCount}× max`
+  const unit = metricUnit(metric)
+  const amount = min === max ? `${min}` : `${min}-${max}`
+  return `${setCount}×${amount}${unit}`
 }
 
 /**

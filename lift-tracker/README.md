@@ -1,8 +1,19 @@
 # Lift Tracker
 
-A single-user, on-device PWA for a 20-week upper-body-biased lifting block with
-nutrition tracking. React + Vite + TypeScript, Dexie/IndexedDB, Recharts.
+A single-user, on-device PWA for a 20-week training block with nutrition
+tracking. React + Vite + TypeScript, Dexie/IndexedDB, Recharts.
 Built phase by phase — see the build brief.
+
+**Current program: v2 — General Physical Preparedness** (see
+`training-program-v2-preparedness.md`). A 4-day split plus a weekly ruck,
+emphasising loaded carries, odd-object work, strength-to-weight and grip.
+Overhead press is the main press; squat, trap-bar deadlift and weighted
+pull-up complete the four tracked lifts. Carries are prescribed in **metres**
+and dead hangs in **seconds**, so sets aren't universally reps.
+
+Changing the seeded program means bumping `PROGRAM_VERSION` in
+`src/data/program.ts`; installs still on an older program are migrated on next
+launch, keeping all logged history.
 
 ## Status
 
@@ -80,6 +91,6 @@ npm run build      # type-check + production build to dist/
 npm run typecheck
 ```
 
-Program seed data lives in `src/data/program.ts`, transcribed verbatim from
-`upper-body-training-program.md`. Reset the app's data by clearing the
-`lift-tracker` IndexedDB database in devtools.
+Program seed data lives in `src/data/program.ts`. Reset the app's data by
+clearing the `lift-tracker` IndexedDB database in devtools, or use
+Settings → Data.

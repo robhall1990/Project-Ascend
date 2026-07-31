@@ -17,16 +17,16 @@ import { round1, toDisplayWeight } from '../lib/units'
 // Validated categorical palette (dark surface #1e293b): blue / orange / aqua /
 // yellow in adjacency-safe order — see dataviz validation.
 export const SERIES_COLOR: Record<string, string> = {
-  'd1-bench': '#3987e5',
-  'd1-ohp': '#d95926',
-  'd3-pullup': '#199e70',
-  'd2-squat': '#c98500',
+  'd1-ohp': '#3987e5',
+  'd2-squat': '#d95926',
+  'd2-trapbar': '#199e70',
+  'd3-pullup': '#c98500',
 }
 const SERIES_LABEL: Record<string, string> = {
-  'd1-bench': 'Bench',
   'd1-ohp': 'OHP',
+  'd2-squat': 'Squat',
+  'd2-trapbar': 'Trap bar',
   'd3-pullup': 'Pull-up',
-  'd2-squat': 'Squat/DL',
 }
 
 const AXIS = '#898781'

@@ -4,9 +4,11 @@ import { db } from '../db/db'
 import type { Exercise, ProgramPhase } from '../types'
 import { DAY_TITLES } from '../data/program'
 import {
-  effectiveRepRange,
+  effectiveTargetRange,
   effectiveSetCount,
   formatPrescription,
+  metricLabel,
+  metricUnit,
   isDeloadWeek,
   parseISODate,
   programPosition,
@@ -220,7 +222,7 @@ export function SessionLogView({ sessionId, onExit }: Props) {
       )}
 
       {exercises.map((ex) => {
-        const range = effectiveRepRange(ex, phase ?? undefined)
+        const range = effectiveTargetRange(ex, phase ?? undefined)
         const sets = effectiveSetCount(ex.setCount, deload)
         const sug = suggestions?.[ex.id]
         return (
@@ -228,7 +230,8 @@ export function SessionLogView({ sessionId, onExit }: Props) {
             <div className="log-exercise-head">
               <div className="log-exercise-name">{ex.name}</div>
               <div className="log-exercise-target">
-                target {formatPrescription(sets, range.min, range.max)}
+                target {formatPrescription(sets, range.min, range.max, ex.metric, ex.submax)}
+                {ex.perSide && <span> · per side</span>}
                 {range.adjusted && <span className="adjusted"> · phase-adjusted</span>}
                 {deload && <span className="adjusted"> · deload</span>}
               </div>
@@ -247,7 +250,7 @@ export function SessionLogView({ sessionId, onExit }: Props) {
             <div className="set-grid-head">
               <span>Set</span>
               <span>Weight ({unit})</span>
-              <span>Reps</span>
+              <span>{metricLabel(ex.metric)}</span>
               <span>RPE</span>
               <span></span>
             </div>
@@ -272,7 +275,7 @@ export function SessionLogView({ sessionId, onExit }: Props) {
                     className="set-input"
                     type="number"
                     inputMode="numeric"
-                    placeholder={String(range.max)}
+                    placeholder={ex.submax ? 'max' : `${range.max}${metricUnit(ex.metric)}`}
                     value={e.reps}
                     onChange={(ev) => update(ex, setNumber, 'reps', ev.target.value)}
                   />

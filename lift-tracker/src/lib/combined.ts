@@ -13,7 +13,7 @@ export interface CombinedPoint {
   proteinG?: number
 }
 
-const MAIN_LIFT_IDS = ['d1-bench', 'd1-ohp', 'd3-pullup', 'd2-squat']
+const MAIN_LIFT_IDS = ['d1-ohp', 'd2-squat', 'd2-trapbar', 'd3-pullup']
 
 /**
  * Weekly-bucketed series for the combined "payoff" view: bodyweight, a strength

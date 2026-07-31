@@ -8,12 +8,13 @@ import type {
   FoodItem,
   Meal,
   ProgramPhase,
+  RuckLog,
   Session,
   SetLog,
   Settings,
   UserStats,
 } from '../types'
-import { SEED_EXERCISES, SEED_PHASES } from '../data/program'
+import { PROGRAM_VERSION, SEED_EXERCISES, SEED_PHASES } from '../data/program'
 import { newId } from '../lib/id'
 import { todayISO } from '../lib/schedule'
 
@@ -26,6 +27,7 @@ const DEFAULT_SETTINGS: Settings = {
   weightUnit: 'kg',
   goalMode: 'lean-gain',
   anthropicModel: 'claude-sonnet-5',
+  programVersion: PROGRAM_VERSION,
 }
 
 // Example stats so the Fuel screen has something to compute from on first run.
@@ -55,6 +57,7 @@ export class LiftTrackerDB extends Dexie {
   foodItems!: Table<FoodItem, string>
   meals!: Table<Meal, string>
   cardioActivities!: Table<CardioActivity, string>
+  ruckLogs!: Table<RuckLog, string>
 
   constructor() {
     super('lift-tracker')
@@ -82,6 +85,10 @@ export class LiftTrackerDB extends Dexie {
     this.version(4).stores({
       cardioActivities: 'id, date, syncedAt',
     })
+    // v5: weekly ruck log (program v2).
+    this.version(5).stores({
+      ruckLogs: 'id, date, createdAt',
+    })
   }
 }
 
@@ -97,14 +104,22 @@ export async function seedIfEmpty(): Promise<void> {
     'rw',
     [db.exercises, db.phases, db.settings, db.userStats, db.bodyweightLogs],
     async () => {
-      if ((await db.exercises.count()) === 0) {
-        await db.exercises.bulkAdd(SEED_EXERCISES)
-      }
-      if ((await db.phases.count()) === 0) {
-        await db.phases.bulkAdd(SEED_PHASES)
-      }
-      if (!(await db.settings.get('singleton'))) {
+      const settings = await db.settings.get('singleton')
+      if (!settings) {
         await db.settings.add(DEFAULT_SETTINGS)
+      }
+
+      // Seed on first run, and migrate an install still carrying an older
+      // program. Logged sessions and set logs are untouched: history for
+      // exercises that no longer exist stays in the database, it just stops
+      // being offered in the current program.
+      const storedVersion = settings?.programVersion ?? (settings ? 1 : 0)
+      if ((await db.exercises.count()) === 0 || storedVersion < PROGRAM_VERSION) {
+        await db.exercises.clear()
+        await db.exercises.bulkAdd(SEED_EXERCISES)
+        await db.phases.clear()
+        await db.phases.bulkAdd(SEED_PHASES)
+        await db.settings.update('singleton', { programVersion: PROGRAM_VERSION })
       }
       if (!(await db.userStats.get('singleton'))) {
         await db.userStats.add(DEFAULT_STATS)

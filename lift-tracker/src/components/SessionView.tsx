@@ -1,5 +1,5 @@
 import type { DayNumber, Exercise, ProgramPhase, WeightUnit } from '../types'
-import { effectiveRepRange, effectiveSetCount, formatPrescription } from '../lib/schedule'
+import { effectiveTargetRange, effectiveSetCount, formatPrescription } from '../lib/schedule'
 import type { Suggestion } from '../lib/progression'
 
 interface Props {
@@ -89,7 +89,7 @@ function ExerciseCard({
   suggestion?: Suggestion
   inSuperset?: boolean
 }) {
-  const range = effectiveRepRange(ex, phase)
+  const range = effectiveTargetRange(ex, phase)
   const sets = effectiveSetCount(ex.setCount, deload)
   return (
     <div className={`exercise-card${ex.isMainLift ? ' main-lift' : ''}`}>
@@ -113,7 +113,10 @@ function ExerciseCard({
         )}
       </div>
       <div className="prescription">
-        <span className="reps">{formatPrescription(sets, range.min, range.max)}</span>
+        <span className="reps">
+          {formatPrescription(sets, range.min, range.max, ex.metric, ex.submax)}
+        </span>
+        {ex.perSide && <span className="adjusted per-side">per side</span>}
         {range.adjusted && <span className="adjusted">phase-adjusted</span>}
         {deload && <span className="adjusted deload">deload</span>}
       </div>

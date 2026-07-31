@@ -17,6 +17,7 @@ import { useToast } from '../lib/toast'
 import { SessionView } from './SessionView'
 import { GuidanceCards } from './GuidanceCards'
 import { CardioCard } from './CardioCard'
+import { RuckCard } from './RuckCard'
 
 interface Props {
   settings: Settings
@@ -29,10 +30,10 @@ interface Props {
 }
 
 const SHORT_LABEL: Record<string, string> = {
-  'd1-bench': 'Bench',
   'd1-ohp': 'OHP',
+  'd2-squat': 'Squat',
+  'd2-trapbar': 'Trap bar',
   'd3-pullup': 'Pull-up',
-  'd2-squat': 'Squat/DL',
 }
 
 export function TodayScreen({
@@ -177,6 +178,8 @@ export function TodayScreen({
           {activeDay !== todayDay && <span className="cta-sub">Previewing — not today’s session</span>}
         </button>
       )}
+
+      <RuckCard week={pos.week} notStarted={pos.notStarted} />
 
       <CardioCard date={today} />
 

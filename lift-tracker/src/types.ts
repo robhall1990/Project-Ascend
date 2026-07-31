@@ -7,6 +7,12 @@ export type DayNumber = 1 | 2 | 3 | 4
 export type WeightUnit = 'kg' | 'lb'
 export type GoalMode = 'lean-gain' | 'recomposition' | 'maintenance'
 
+/**
+ * What a set of this exercise is measured in. Carries are prescribed by
+ * distance and holds by time, so "reps" is not universal in program v2.
+ */
+export type Metric = 'reps' | 'distance' | 'time'
+
 /** A single programmed exercise slot on a training day. */
 export interface Exercise {
   id: string
@@ -15,9 +21,15 @@ export interface Exercise {
   name: string
   /** Programmed number of working sets. */
   setCount: number
-  /** Target rep range (inclusive). */
-  repMin: number
-  repMax: number
+  /** What each set is measured in. */
+  metric: Metric
+  /** Target range (inclusive) in the exercise's metric: reps, metres or seconds. */
+  targetMin: number
+  targetMax: number
+  /** Prescribed per side rather than per set (suitcase carry, single-arm row). */
+  perSide?: boolean
+  /** No fixed target — work to technical failure / max hold. */
+  submax?: boolean
   /** One of the four lifts whose estimated 1RM is tracked over the block. */
   isMainLift: boolean
   notes?: string
@@ -57,6 +69,8 @@ export interface Settings {
   intervalsAthleteId?: string
   /** Epoch ms of the last successful intervals.icu sync. */
   intervalsLastSync?: number
+  /** Seeded program version, so a program change migrates existing installs. */
+  programVersion?: number
 }
 
 // ---- Declared now, used in later phases -------------------------------------
@@ -80,8 +94,22 @@ export interface SetLog {
   exerciseId: string
   setNumber: number
   weight: number
+  /**
+   * The measured amount for the set, in the exercise's metric: repetitions,
+   * metres carried, or seconds held.
+   */
   reps: number
   rpe?: number
+}
+
+/** A weekly ruck — weighted walking, logged separately from the 4 gym days. */
+export interface RuckLog {
+  id: string
+  date: string
+  loadKg: number
+  distanceKm: number
+  minutes?: number
+  createdAt: number
 }
 
 // ---- Nutrition ---------------------------------------------------------------
