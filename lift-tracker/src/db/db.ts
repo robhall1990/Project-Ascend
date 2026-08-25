@@ -2,6 +2,7 @@ import Dexie, { type Table } from 'dexie'
 import type {
   BodyweightLog,
   CardioActivity,
+  CoachingSuggestion,
   DayNutrition,
   Exercise,
   FoodEntry,
@@ -12,6 +13,7 @@ import type {
   Session,
   SetLog,
   Settings,
+  TrainingLoad,
   UserStats,
 } from '../types'
 import { PROGRAM_VERSION, SEED_EXERCISES, SEED_PHASES } from '../data/program'
@@ -58,6 +60,9 @@ export class LiftTrackerDB extends Dexie {
   meals!: Table<Meal, string>
   cardioActivities!: Table<CardioActivity, string>
   ruckLogs!: Table<RuckLog, string>
+  // AI Coaching (Phase 1+)
+  trainingLoads!: Table<TrainingLoad, string>
+  coachingSuggestions!: Table<CoachingSuggestion, string>
 
   constructor() {
     super('lift-tracker')
@@ -88,6 +93,11 @@ export class LiftTrackerDB extends Dexie {
     // v5: weekly ruck log (program v2).
     this.version(5).stores({
       ruckLogs: 'id, date, createdAt',
+    })
+    // v6: AI coaching (Phase 1).
+    this.version(6).stores({
+      trainingLoads: 'id, date, createdAt',
+      coachingSuggestions: 'id, date',
     })
   }
 }

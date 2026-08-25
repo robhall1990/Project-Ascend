@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import type { ProgramPhase, Settings } from '../types'
+import type { ProgramPhase, Settings, TrainingLoad } from '../types'
 import { DAY_TITLES } from '../data/program'
 import { phaseForWeek, programPosition } from '../lib/schedule'
 import { exerciseHistory, mainLiftsTrend } from '../lib/progression'
 import { combinedProgress } from '../lib/combined'
+import { loadSeries } from '../lib/loadModeling'
 import { E1RMChart, WeightHistoryChart, CombinedProgressCharts, SERIES_COLOR } from './charts'
+import { TrainingLoadChart } from './TrainingLoadChart'
 
 interface Props {
   settings: Settings
@@ -28,6 +30,15 @@ export function ProgressScreen({ settings, phases, onOpenSettings }: Props) {
     [],
   )
 
+  const [loads, setLoads] = useState<TrainingLoad[]>([])
+  useEffect(() => {
+    const load7daysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0]
+    const today = new Date().toISOString().split('T')[0]
+    loadSeries(load7daysAgo, today).then(setLoads)
+  }, [])
+
   const [exId, setExId] = useState('d1-ohp')
   const history = useLiveQuery(() => exerciseHistory(exId), [exId], [])
   const selected = (exercises ?? []).find((e) => e.id === exId)
@@ -48,6 +59,17 @@ export function ProgressScreen({ settings, phases, onOpenSettings }: Props) {
           ? `Program starts in ${pos.daysUntilStart} days`
           : `Week ${pos.week} of 20 · ${currentPhase?.name ?? ''} · ${pos.weeksRemaining} weeks to year-end`}
       </p>
+
+      {/* Training load (7-day rolling) */}
+      {loads.length > 0 && (
+        <section className="chart-card">
+          <h2 className="chart-title">Training Load — 7 days</h2>
+          <p className="chart-subtitle">
+            Strength (blue) + Cardio (red) load. Use RPE during sessions to see strength load.
+          </p>
+          <TrainingLoadChart loads={loads} />
+        </section>
+      )}
 
       {/* The payoff: weight · strength · protein together */}
       <section className="chart-card">

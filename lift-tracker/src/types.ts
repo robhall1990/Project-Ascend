@@ -221,3 +221,36 @@ export interface Meal {
   carbs: number
   fat: number
 }
+
+// ---- AI Coaching (Phase 1+) --------------------------------------------------
+
+export type RecoveryStatus = 'adequate' | 'deficit' | 'surplus'
+export type SessionType = 'strength' | 'cardio' | 'skill' | 'rest'
+export type IntensityModifier = 'deload' | 'standard' | 'heavy'
+
+/** Daily training load tracking: strength RPE, cardio load, combined total. */
+export interface TrainingLoad {
+  id: string
+  date: string
+  strengthRpe?: number // 1–10 during session, optional if rest day
+  strengthDurationMin?: number
+  strengthLoad: number // RPE × duration, 0 if no session
+  cardioLoad: number // TSS or load score from cardio activities
+  totalLoad: number // strengthLoad + cardioLoad
+  recoveryStatus: RecoveryStatus
+  createdAt: number
+}
+
+/** AI coaching suggestion for a day: session type, reasoning, intensity modifier. */
+export interface CoachingSuggestion {
+  id: string
+  date: string
+  dayNumber?: DayNumber | 'flexible'
+  sessionType: SessionType
+  title: string // "Upper Body Strength (Heavy)"
+  reasoning: string
+  intensityModifier?: IntensityModifier
+  cardioGuidance?: string // "Easy run, 30–40 min only"
+  createdAt: number
+  regeneratedAt?: number
+}

@@ -18,6 +18,7 @@ import { SessionView } from './SessionView'
 import { GuidanceCards } from './GuidanceCards'
 import { CardioCard } from './CardioCard'
 import { RuckCard } from './RuckCard'
+import { CoachingSuggestionCard } from './CoachingSuggestionCard'
 
 interface Props {
   settings: Settings
@@ -178,6 +179,8 @@ export function TodayScreen({
           {activeDay !== todayDay && <span className="cta-sub">Previewing — not today’s session</span>}
         </button>
       )}
+
+      {activeDay === todayDay && <CoachingSuggestionCard date={today} settings={settings} />}
 
       <RuckCard week={pos.week} notStarted={pos.notStarted} />
 
