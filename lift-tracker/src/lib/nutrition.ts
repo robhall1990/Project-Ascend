@@ -1,6 +1,7 @@
 import { db } from '../db/db'
 import { newId } from './id'
 import { todayISO } from './schedule'
+import { dailyHighLoadThreshold } from './loadModeling'
 import type {
   ActivityLevel,
   DayNutrition,
@@ -62,6 +63,19 @@ export interface MacroTarget {
   fat: number
 }
 
+/**
+ * How today's carb target should flex around actual training load, on top of
+ * the day-type flex. `weeklyTolerance` comes from Settings (explicit override
+ * or training-age default); `todayLoad`/`yesterdayLoad` come from
+ * loadModeling's computeDailyLoad. All optional so a target still computes
+ * fine before any load has been logged.
+ */
+export interface LoadContext {
+  weeklyTolerance: number
+  todayLoad?: number
+  yesterdayLoad?: number
+}
+
 export interface TargetInputs {
   stats: UserStats
   bodyweightKg: number
@@ -69,14 +83,19 @@ export interface TargetInputs {
   dayType: DayType
   enduranceMinutes?: number
   enduranceIntensity?: EnduranceIntensity
+  loadContext?: LoadContext
 }
 
 /**
  * Compute a day's macro target from stats, goal and day type. Protein is
  * bodyweight-driven and held constant across day types; fat is 25% of calories
  * with a 0.8 g/kg floor; carbs take the remainder and are the lever that flexes
- * by day type (endurance adds, rest trims). Calories are re-derived from the
- * final macros so the numbers stay internally consistent.
+ * by day type (endurance adds, rest trims) and, when load data is available,
+ * by actual training stress: a day that's running hot relative to tolerance
+ * gets +10% carbs to support recovery, and a rest day right after a heavy one
+ * gets trimmed a further 5% since the body isn't refuelling for tomorrow's
+ * session. Calories are re-derived from the final macros so the numbers stay
+ * internally consistent.
  */
 export function computeTarget(input: TargetInputs): MacroTarget {
   const { stats, bodyweightKg: kg, goal, dayType } = input
@@ -93,6 +112,13 @@ export function computeTarget(input: TargetInputs): MacroTarget {
     const minutes = input.enduranceMinutes ?? 0
     const intensity = input.enduranceIntensity ?? 'moderate'
     carbs += kg * (minutes / 60) * ENDURANCE_CARB_G_PER_KG_HR[intensity]
+  }
+
+  if (input.loadContext) {
+    const { weeklyTolerance, todayLoad, yesterdayLoad } = input.loadContext
+    const threshold = dailyHighLoadThreshold(weeklyTolerance)
+    if ((todayLoad ?? 0) > threshold) carbs *= 1.1
+    if (dayType === 'rest' && (yesterdayLoad ?? 0) > threshold) carbs *= 0.95
   }
 
   const calories = protein * 4 + carbs * 4 + fat * 9

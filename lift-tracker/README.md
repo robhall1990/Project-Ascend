@@ -103,8 +103,21 @@ phase breakdown: see the project's plan file. Completed so far:
   status instead of the cruder same-day-load heuristic, and elevated fatigue
   nudges suggestions toward standard/deload intensity.
 
-Not yet built: recovery-tolerance modelling per training age, streaks/goal
-tracking, weekly coach commentary, and a dedicated analytics screen.
+- **Phase 3 — Recovery tolerance & nutrition load-flexing** ✅
+  A weekly training-load tolerance (`src/lib/loadModeling.ts`), defaulted from
+  a training-age picker in Settings (beginner/intermediate/advanced) or
+  overridden with an explicit number. Progress shows the current week's load
+  against tolerance and flags when it's over. Nutrition now flexes around
+  actual load, not just day type: a day whose training load clears 1.5x the
+  tolerance's daily average gets +10% carbs, and a rest day right after one
+  gets trimmed a further 5% (`computeTarget`'s `loadContext`, fed by the new
+  `useLoadContext` hook on Today and Fuel). The coaching prompt states the
+  load-vs-tolerance ratio explicitly and is told to favour a deload
+  intensity once over it, and to call out cardio interference on lower-body
+  work rather than just cutting the lift.
+
+Not yet built: streaks/goal tracking, weekly coach commentary, and a
+dedicated analytics screen.
 
 ## Develop
 

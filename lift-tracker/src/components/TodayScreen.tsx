@@ -12,6 +12,7 @@ import {
 } from '../lib/schedule'
 import { mainLiftBests, suggestionsForDay, type Suggestion } from '../lib/progression'
 import { dismissGuidance, guidanceCards, resolveTarget } from '../lib/nutrition'
+import { useLoadContext } from '../lib/useLoadContext'
 import { startSession } from '../lib/sessionRepo'
 import { useToast } from '../lib/toast'
 import { SessionView } from './SessionView'
@@ -85,12 +86,15 @@ export function TodayScreen({
     [],
   )
 
+  const loadContext = useLoadContext(settings, today)
+
   const cards = useMemo(() => {
     if (!stats || !bw) return []
     const target = resolveTarget(dayNut, {
       stats,
       bodyweightKg: bw.weightKg,
       goal: settings.goalMode,
+      loadContext,
     })
     const consumedCalories = (todayEntries ?? []).reduce((n, e) => n + e.calories, 0)
     return guidanceCards({
@@ -103,7 +107,7 @@ export function TodayScreen({
       targetCalories: target.calories,
       dismissed: dayNut?.dismissedGuidance ?? [],
     })
-  }, [stats, bw, dayNut, todayEntries, sessions, today, settings.goalMode])
+  }, [stats, bw, dayNut, todayEntries, sessions, today, settings.goalMode, loadContext])
 
   async function startToday() {
     const s = await run(

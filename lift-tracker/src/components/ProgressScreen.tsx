@@ -6,7 +6,7 @@ import { DAY_TITLES } from '../data/program'
 import { phaseForWeek, programPosition } from '../lib/schedule'
 import { exerciseHistory, mainLiftsTrend } from '../lib/progression'
 import { combinedProgress } from '../lib/combined'
-import { loadSeries } from '../lib/loadModeling'
+import { loadSeries, weeklyToleranceStatus, type ToleranceStatus } from '../lib/loadModeling'
 import { latestWellness } from '../lib/wellness'
 import { E1RMChart, WeightHistoryChart, CombinedProgressCharts, SERIES_COLOR } from './charts'
 import { TrainingLoadChart } from './TrainingLoadChart'
@@ -35,13 +35,16 @@ export function ProgressScreen({ settings, phases, onOpenSettings }: Props) {
   const wellness = useLiveQuery(() => latestWellness(), [], undefined)
 
   const [loads, setLoads] = useState<TrainingLoad[]>([])
+  const [tolerance, setTolerance] = useState<ToleranceStatus | undefined>()
   useEffect(() => {
     const load7daysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
       .toISOString()
       .split('T')[0]
     const today = new Date().toISOString().split('T')[0]
     loadSeries(load7daysAgo, today).then(setLoads)
-  }, [])
+    weeklyToleranceStatus(settings).then(setTolerance)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.recoveryTolerance, settings.trainingAge])
 
   const [exId, setExId] = useState('d1-ohp')
   const history = useLiveQuery(() => exerciseHistory(exId), [exId], [])
@@ -74,6 +77,16 @@ export function ProgressScreen({ settings, phases, onOpenSettings }: Props) {
           <p className="chart-subtitle">
             Strength (blue) + Cardio (red) load. Use RPE during sessions to see strength load.
           </p>
+          {tolerance && (
+            <p className={`tolerance-line tolerance-${tolerance.status}`}>
+              {tolerance.weeklyLoad} / {tolerance.tolerance} weekly load ({Math.round(tolerance.ratio * 100)}%)
+              {tolerance.status === 'over'
+                ? ' — over tolerance, expect the coach to suggest a lighter day'
+                : tolerance.status === 'under'
+                  ? ' — well under tolerance'
+                  : ' — within tolerance'}
+            </p>
+          )}
           <TrainingLoadChart loads={loads} />
         </section>
       )}

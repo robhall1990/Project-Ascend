@@ -1,5 +1,5 @@
 import { db } from '../db/db'
-import type { RecoveryStatus, TrainingLoad } from '../types'
+import type { RecoveryStatus, Settings, TrainingAge, TrainingLoad } from '../types'
 
 /**
  * Compute training load for a day from strength and cardio components.
@@ -144,4 +144,54 @@ export async function weeklyLoadTotal(days: number = 7): Promise<number> {
 
   const loads = await loadSeries(startDate, endDate)
   return loads.reduce((sum, load) => sum + load.totalLoad, 0)
+}
+
+// ---- Recovery tolerance (Phase 3) --------------------------------------------
+
+/**
+ * Default weekly load tolerance by training age, in the same RPE-minutes +
+ * cardio-load units as TrainingLoad.totalLoad. A more experienced lifter can
+ * absorb more combined strength + cardio load before it starts costing them
+ * strength adaptation. These are starting points, not prescriptions — the
+ * user can override with an explicit number in Settings.
+ */
+export const DEFAULT_TOLERANCE: Record<TrainingAge, number> = {
+  beginner: 90,
+  intermediate: 120,
+  advanced: 160,
+}
+
+/** Resolve the athlete's weekly load tolerance: explicit override, else training-age default. */
+export function resolveWeeklyTolerance(settings: Pick<Settings, 'recoveryTolerance' | 'trainingAge'>): number {
+  return settings.recoveryTolerance ?? DEFAULT_TOLERANCE[settings.trainingAge ?? 'intermediate']
+}
+
+/**
+ * A single day's load counts as "high" once it clears 1.5x the tolerance's
+ * daily average — used to flex nutrition and to warn the coaching prompt
+ * about a specific heavy day, as distinct from the rolling weekly total.
+ */
+export function dailyHighLoadThreshold(weeklyTolerance: number): number {
+  return (weeklyTolerance / 7) * 1.5
+}
+
+export interface ToleranceStatus {
+  weeklyLoad: number
+  tolerance: number
+  /** weeklyLoad / tolerance, rounded to 2dp. */
+  ratio: number
+  status: 'under' | 'within' | 'over'
+}
+
+/**
+ * Where the athlete sits against their weekly tolerance right now. "over"
+ * (>110% of tolerance) is the signal the coaching prompt uses to lean toward
+ * a deload or easy day instead of piling on more load.
+ */
+export async function weeklyToleranceStatus(settings: Settings): Promise<ToleranceStatus> {
+  const tolerance = resolveWeeklyTolerance(settings)
+  const weeklyLoad = await weeklyLoadTotal(7)
+  const ratio = tolerance > 0 ? Math.round((weeklyLoad / tolerance) * 100) / 100 : 0
+  const status: ToleranceStatus['status'] = ratio > 1.1 ? 'over' : ratio < 0.5 ? 'under' : 'within'
+  return { weeklyLoad: Math.round(weeklyLoad), tolerance, ratio, status }
 }

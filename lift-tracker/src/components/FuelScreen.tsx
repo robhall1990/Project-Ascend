@@ -13,6 +13,7 @@ import {
 import { deleteEntry, logMeal, saveMealFromEntries, suggestMeals } from '../lib/foodRepo'
 import type { Meal } from '../types'
 import { useToast } from '../lib/toast'
+import { useLoadContext } from '../lib/useLoadContext'
 import { ProteinRing, MacroBar } from './MacroRings'
 import { PromptDialog } from './Modal'
 import { FoodLogSheet, SLOT_LABEL } from './FoodLogSheet'
@@ -60,6 +61,7 @@ export function FuelScreen({
   const dayNut = useLiveQuery(() => db.dayNutrition.get(today), [today])
   const entries = useLiveQuery(() => db.foodEntries.where('date').equals(today).toArray(), [today], [])
   const meals = useLiveQuery(() => db.meals.toArray(), [], [])
+  const loadContext = useLoadContext(settings, today)
 
   const [sheetSlot, setSheetSlot] = useState<MealSlot | null>(null)
   const [namingMeal, setNamingMeal] = useState<{ slot: MealSlot; entries: FoodEntry[] } | null>(null)
@@ -77,7 +79,7 @@ export function FuelScreen({
 
   const bodyweightKg = bw.weightKg
   const dayType = dayNut?.dayType ?? 'lift'
-  const target = resolveTarget(dayNut, { stats, bodyweightKg, goal: settings.goalMode })
+  const target = resolveTarget(dayNut, { stats, bodyweightKg, goal: settings.goalMode, loadContext })
   const maintenance = Math.round(maintenanceCalories(stats, bodyweightKg))
 
   const consumed = (entries ?? []).reduce(

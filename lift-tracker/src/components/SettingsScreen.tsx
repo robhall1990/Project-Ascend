@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import type { ActivityLevel, GoalMode, Sex, Settings, WeightUnit } from '../types'
+import type { ActivityLevel, GoalMode, Sex, Settings, TrainingAge, WeightUnit } from '../types'
+import { DEFAULT_TOLERANCE, resolveWeeklyTolerance } from '../lib/loadModeling'
 import { ACTIVITY_LABEL, GOAL_LABEL, logBodyweight, maintenanceCalories } from '../lib/nutrition'
 import { exportBackup, importBackup, resetLoggedData, setWeightUnit, updateSettings } from '../lib/settingsRepo'
 import { round1, toDisplayWeight, toKg } from '../lib/units'
@@ -13,6 +14,12 @@ import { useToast } from '../lib/toast'
 import { ConfirmDialog } from './Modal'
 
 const GOALS: GoalMode[] = ['lean-gain', 'recomposition', 'maintenance']
+const TRAINING_AGES: TrainingAge[] = ['beginner', 'intermediate', 'advanced']
+const TRAINING_AGE_LABEL: Record<TrainingAge, string> = {
+  beginner: 'Beginner',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
+}
 const MODELS = [
   { id: 'claude-sonnet-5', label: 'Sonnet 5 — fast, good value' },
   { id: 'claude-opus-5', label: 'Opus 5 — most accurate' },
@@ -269,6 +276,37 @@ export function SettingsScreen({ settings, onBack }: { settings: Settings; onBac
             step={0.1}
             value={stats.proteinPerKg}
             onChange={(e) => saveStats({ proteinPerKg: parseFloat(e.target.value) })}
+          />
+        </Row>
+      </Section>
+
+      {/* ---- Training load ---- */}
+      <Section
+        title="Training load"
+        hint={`Weekly tolerance ≈ ${resolveWeeklyTolerance(settings)} (strength RPE-load + cardio, combined). The coach leans toward a deload once you're over it.`}
+      >
+        <Row label="Training age" hint="Sets the default weekly tolerance below">
+          <select
+            value={settings.trainingAge ?? 'intermediate'}
+            onChange={(e) => patch({ trainingAge: e.target.value as TrainingAge })}
+          >
+            {TRAINING_AGES.map((a) => (
+              <option key={a} value={a}>
+                {TRAINING_AGE_LABEL[a]} (default {DEFAULT_TOLERANCE[a]})
+              </option>
+            ))}
+          </select>
+        </Row>
+        <Row label="Tolerance override" hint="Leave blank to use the training-age default">
+          <input
+            type="number"
+            inputMode="numeric"
+            placeholder={String(DEFAULT_TOLERANCE[settings.trainingAge ?? 'intermediate'])}
+            defaultValue={settings.recoveryTolerance ?? ''}
+            onBlur={(e) => {
+              const v = parseFloat(e.target.value)
+              patch({ recoveryTolerance: Number.isFinite(v) && v > 0 ? v : undefined }, 'Saved')
+            }}
           />
         </Row>
       </Section>

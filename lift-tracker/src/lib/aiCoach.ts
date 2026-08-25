@@ -1,7 +1,7 @@
 import type { CoachingSuggestion } from '../types'
 import { db } from '../db/db'
 import { programPosition, phaseForWeek } from './schedule'
-import { weeklyLoadTotal } from './loadModeling'
+import { weeklyToleranceStatus, type ToleranceStatus } from './loadModeling'
 import { recentCardioLoad } from './intervals'
 import { latestWellness, wellnessSummary } from './wellness'
 
@@ -9,7 +9,7 @@ interface CoachContext {
   phase: string
   weekNumber: number
   goalMode: string
-  recentLoad7d: number
+  tolerance: ToleranceStatus
   cardioLoad7d: number
   cardioMinutes7d: number
   strengthSessions: number
@@ -52,8 +52,8 @@ async function buildCoachingContext(date: string): Promise<CoachContext> {
   const phases = await db.phases.toArray()
   const currentPhase = phaseForWeek(pos.week, phases)
 
-  // Weekly loads
-  const weekly = await weeklyLoadTotal(7)
+  // Weekly load against the athlete's tolerance (Phase 3)
+  const tolerance = await weeklyToleranceStatus(settings)
   const cardio7d = await recentCardioLoad(7)
 
   // Recent sessions
@@ -76,7 +76,7 @@ async function buildCoachingContext(date: string): Promise<CoachContext> {
     phase: currentPhase?.name ?? 'Unknown',
     weekNumber: pos.week,
     goalMode: settings.goalMode,
-    recentLoad7d: weekly,
+    tolerance,
     cardioLoad7d: cardio7d.load,
     cardioMinutes7d: cardio7d.minutes,
     strengthSessions: recentSessions.length,
@@ -89,17 +89,25 @@ async function buildCoachingContext(date: string): Promise<CoachContext> {
  * Format the coaching prompt for Claude.
  */
 function formatCoachingPrompt(context: CoachContext): string {
+  const t = context.tolerance
+  const toleranceLine =
+    t.status === 'over'
+      ? `${t.weeklyLoad} vs a tolerance of ${t.tolerance} (${Math.round(t.ratio * 100)}% — OVER tolerance, favour a lighter or deload day)`
+      : t.status === 'under'
+        ? `${t.weeklyLoad} vs a tolerance of ${t.tolerance} (${Math.round(t.ratio * 100)}% — well under tolerance, room to push)`
+        : `${t.weeklyLoad} vs a tolerance of ${t.tolerance} (${Math.round(t.ratio * 100)}% — within tolerance)`
+
   return `You are a strength coaching assistant balancing lifting against cardio (running/cycling). Suggest today's workout based on the athlete's training state.
 
 Context:
 - Phase: ${context.phase}, Week ${context.weekNumber}
 - Goal: ${context.goalMode}
-- 7-day load: Strength + Cardio total = ${context.recentLoad7d}
+- 7-day combined load (strength RPE-load + cardio): ${toleranceLine}
 - 7-day cardio: ${context.cardioLoad7d} load over ${context.cardioMinutes7d} minutes
 - Sessions this week: ${context.strengthSessions}
 ${context.wellness ? `- Recovery data: ${context.wellness}` : '- No recovery/wellness data synced.'}
 
-If cardio load is high relative to strength sessions, be cautious about heavy lower-body work and say so in your reasoning. If recovery data shows elevated fatigue (ATL well above CTL, low HRV, high resting HR), lean toward standard or deload intensity rather than heavy.
+If weekly load is over tolerance, the intensityModifier should usually be "deload" and the reasoning should say so plainly. If cardio load is high relative to strength sessions, be cautious about heavy lower-body work — that's the interference effect: too much running/cycling volume blunts strength adaptation, so call it out and suggest trimming cardio or keeping it easy rather than cutting the lift. If recovery data shows elevated fatigue (ATL well above CTL, low HRV, high resting HR), lean toward standard or deload intensity rather than heavy, even if the weekly load number alone looks fine.
 
 Respond ONLY with valid JSON (no extra text):
 {

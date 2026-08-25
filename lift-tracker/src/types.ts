@@ -6,6 +6,7 @@
 export type DayNumber = 1 | 2 | 3 | 4
 export type WeightUnit = 'kg' | 'lb'
 export type GoalMode = 'lean-gain' | 'recomposition' | 'maintenance'
+export type TrainingAge = 'beginner' | 'intermediate' | 'advanced'
 
 /**
  * What a set of this exercise is measured in. Carries are prescribed by
@@ -71,6 +72,13 @@ export interface Settings {
   intervalsLastSync?: number
   /** Epoch ms of the last successful intervals.icu wellness sync. */
   intervalsLastWellnessSync?: number
+  /**
+   * How many years of consistent training inform the default weekly load
+   * tolerance (Phase 3). Ignored once `recoveryTolerance` is set explicitly.
+   */
+  trainingAge?: TrainingAge
+  /** Manual override of the weekly training-load tolerance (RPE-minutes + cardio TSS-like units). */
+  recoveryTolerance?: number
   /** Seeded program version, so a program change migrates existing installs. */
   programVersion?: number
 }
