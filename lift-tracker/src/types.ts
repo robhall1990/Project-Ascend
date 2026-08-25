@@ -69,6 +69,8 @@ export interface Settings {
   intervalsAthleteId?: string
   /** Epoch ms of the last successful intervals.icu sync. */
   intervalsLastSync?: number
+  /** Epoch ms of the last successful intervals.icu wellness sync. */
+  intervalsLastWellnessSync?: number
   /** Seeded program version, so a program change migrates existing installs. */
   programVersion?: number
 }
@@ -253,4 +255,35 @@ export interface CoachingSuggestion {
   cardioGuidance?: string // "Easy run, 30–40 min only"
   createdAt: number
   regeneratedAt?: number
+}
+
+// ---- Performance / Wellness (Phase 2) ----------------------------------------
+
+/**
+ * Daily physiological wellness snapshot, sourced from intervals.icu's wellness
+ * endpoint — which itself pulls from whatever the athlete has connected there
+ * (Garmin Connect, in this app's case). Covers VO2 max, resting HR, HRV and the
+ * fitness/fatigue (CTL/ATL) load model, without needing a separate Garmin OAuth
+ * integration.
+ */
+export interface WellnessRecord {
+  /** ISO date (YYYY-MM-DD) — the primary key. */
+  date: string
+  vo2max?: number
+  restingHr?: number
+  /** HRV, ms (RMSSD or SDNN depending on the athlete's device). */
+  hrv?: number
+  /** Chronic Training Load — long-run "fitness". */
+  ctl?: number
+  /** Acute Training Load — short-run "fatigue". */
+  atl?: number
+  /** CTL − ATL — "form"; negative means carrying fatigue. */
+  form?: number
+  rampRate?: number
+  sleepSecs?: number
+  sleepScore?: number
+  bodyFatPct?: number
+  weightKg?: number
+  source: 'intervals'
+  syncedAt: number
 }

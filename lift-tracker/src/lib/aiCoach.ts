@@ -1,7 +1,9 @@
 import type { CoachingSuggestion } from '../types'
 import { db } from '../db/db'
 import { programPosition, phaseForWeek } from './schedule'
-import { recentCardioLoad, weeklyLoadTotal } from './loadModeling'
+import { weeklyLoadTotal } from './loadModeling'
+import { recentCardioLoad } from './intervals'
+import { latestWellness, wellnessSummary } from './wellness'
 
 interface CoachContext {
   phase: string
@@ -9,8 +11,10 @@ interface CoachContext {
   goalMode: string
   recentLoad7d: number
   cardioLoad7d: number
+  cardioMinutes7d: number
   strengthSessions: number
   mainLiftsProgress?: { exerciseName: string; e1rm: number }[]
+  wellness?: string
 }
 
 /**
@@ -65,14 +69,19 @@ async function buildCoachingContext(date: string): Promise<CoachContext> {
   // Gather main lift progress (simple: just count recent sessions for now)
   const mainLifts = await db.exercises.filter((e) => e.isMainLift).toArray()
 
+  // Garmin-sourced wellness (VO2 max, resting HR, HRV, fitness/fatigue), via intervals.icu
+  const wellness = await latestWellness()
+
   return {
     phase: currentPhase?.name ?? 'Unknown',
     weekNumber: pos.week,
     goalMode: settings.goalMode,
     recentLoad7d: weekly,
-    cardioLoad7d: cardio7d,
+    cardioLoad7d: cardio7d.load,
+    cardioMinutes7d: cardio7d.minutes,
     strengthSessions: recentSessions.length,
     mainLiftsProgress: mainLifts.map((e) => ({ exerciseName: e.name, e1rm: 0 })), // TODO: fetch actual e1rms
+    wellness: wellness ? wellnessSummary(wellness) : undefined,
   }
 }
 
@@ -80,14 +89,17 @@ async function buildCoachingContext(date: string): Promise<CoachContext> {
  * Format the coaching prompt for Claude.
  */
 function formatCoachingPrompt(context: CoachContext): string {
-  return `You are a strength coaching assistant. Suggest today's workout based on the athlete's training state.
+  return `You are a strength coaching assistant balancing lifting against cardio (running/cycling). Suggest today's workout based on the athlete's training state.
 
 Context:
 - Phase: ${context.phase}, Week ${context.weekNumber}
 - Goal: ${context.goalMode}
 - 7-day load: Strength + Cardio total = ${context.recentLoad7d}
-- 7-day cardio load: ${context.cardioLoad7d}
+- 7-day cardio: ${context.cardioLoad7d} load over ${context.cardioMinutes7d} minutes
 - Sessions this week: ${context.strengthSessions}
+${context.wellness ? `- Recovery data: ${context.wellness}` : '- No recovery/wellness data synced.'}
+
+If cardio load is high relative to strength sessions, be cautious about heavy lower-body work and say so in your reasoning. If recovery data shows elevated fatigue (ATL well above CTL, low HRV, high resting HR), lean toward standard or deload intensity rather than heavy.
 
 Respond ONLY with valid JSON (no extra text):
 {

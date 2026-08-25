@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { CoachingSuggestion, Settings } from '../types'
-import { getOrGenerateSuggestion } from '../lib/aiCoach'
+import { generateSessionSuggestion, getOrGenerateSuggestion } from '../lib/aiCoach'
 import { useToast } from '../lib/toast'
 
 interface Props {
@@ -155,14 +155,4 @@ function getSessionTypeEmoji(type: string): string {
     default:
       return '📋'
   }
-}
-
-// Import the function here to avoid circular dependency
-async function generateSessionSuggestion(
-  date: string,
-  apiKey: string,
-  model: string,
-): Promise<CoachingSuggestion> {
-  const { generateSessionSuggestion: gen } = await import('../lib/aiCoach')
-  return gen(date, apiKey, model)
 }

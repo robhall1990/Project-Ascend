@@ -7,8 +7,10 @@ import { phaseForWeek, programPosition } from '../lib/schedule'
 import { exerciseHistory, mainLiftsTrend } from '../lib/progression'
 import { combinedProgress } from '../lib/combined'
 import { loadSeries } from '../lib/loadModeling'
+import { latestWellness } from '../lib/wellness'
 import { E1RMChart, WeightHistoryChart, CombinedProgressCharts, SERIES_COLOR } from './charts'
 import { TrainingLoadChart } from './TrainingLoadChart'
+import { WellnessCard } from './WellnessCard'
 
 interface Props {
   settings: Settings
@@ -29,6 +31,8 @@ export function ProgressScreen({ settings, phases, onOpenSettings }: Props) {
     [settings.programStartDate],
     [],
   )
+
+  const wellness = useLiveQuery(() => latestWellness(), [], undefined)
 
   const [loads, setLoads] = useState<TrainingLoad[]>([])
   useEffect(() => {
@@ -59,6 +63,9 @@ export function ProgressScreen({ settings, phases, onOpenSettings }: Props) {
           ? `Program starts in ${pos.daysUntilStart} days`
           : `Week ${pos.week} of 20 · ${currentPhase?.name ?? ''} · ${pos.weeksRemaining} weeks to year-end`}
       </p>
+
+      {/* Performance snapshot (VO2 max, HRV, fitness/fatigue) */}
+      <WellnessCard wellness={wellness} />
 
       {/* Training load (7-day rolling) */}
       {loads.length > 0 && (

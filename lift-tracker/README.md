@@ -81,6 +81,31 @@ launch, keeping all logged history.
 
 All nine phases from the build brief are complete.
 
+## AI coaching (re-engineering, in progress)
+
+The app is being extended into a personalised AI coaching platform. Plan and
+phase breakdown: see the project's plan file. Completed so far:
+
+- **Phase 1 — AI coaching foundations** ✅
+  Daily training load computed from strength RPE × duration plus synced cardio
+  load (`src/lib/loadModeling.ts`). Claude generates a daily session suggestion
+  from that load, the current phase and program week (`src/lib/aiCoach.ts`),
+  shown on Today and cached for 24h with a manual refresh. Falls back to a
+  cached or default suggestion if the API call fails — never a blank card.
+  7-day load trend chart on Progress.
+- **Phase 2 — Performance data** ✅
+  VO2 max, resting HR, HRV and the CTL/ATL fitness-fatigue model, synced via
+  intervals.icu's wellness endpoint (`src/lib/wellness.ts`) using the same
+  credentials as the existing cardio sync — intervals.icu already pulls this
+  from Garmin Connect (or whatever's connected there) server-side, so no
+  separate Garmin OAuth integration was needed. Shown on Progress and folded
+  into the coaching prompt: when CTL−ATL "form" is available it drives recovery
+  status instead of the cruder same-day-load heuristic, and elevated fatigue
+  nudges suggestions toward standard/deload intensity.
+
+Not yet built: recovery-tolerance modelling per training age, streaks/goal
+tracking, weekly coach commentary, and a dedicated analytics screen.
+
 ## Develop
 
 ```bash

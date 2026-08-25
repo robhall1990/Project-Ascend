@@ -46,7 +46,12 @@ export async function computeDailyLoad(date: string): Promise<TrainingLoad | und
   const cardioLoad = cardioActivities.reduce((sum, activity) => sum + (activity.load ?? 0), 0)
 
   const totalLoad = strengthLoad + cardioLoad
-  const recoveryStatus = computeRecoveryStatus(totalLoad)
+
+  // Prefer wellness-derived recovery (CTL/ATL "form") when synced — it reflects
+  // accumulated fatigue across weeks, not just one day's load.
+  const wellness = await db.wellnessRecords.get(date)
+  const recoveryStatus =
+    wellness?.form != null ? recoveryFromForm(wellness.form) : computeRecoveryStatus(totalLoad)
 
   // Only return a load record if there's actual data
   if (strengthLoad === 0 && cardioLoad === 0) {
@@ -67,29 +72,25 @@ export async function computeDailyLoad(date: string): Promise<TrainingLoad | und
 }
 
 /**
- * Determine recovery status based on daily load.
- * Conservative thresholds: under 50 is adequate, 50–150 is okay, over 150 is deficit.
+ * Determine recovery status based on daily load alone (fallback when no
+ * wellness data has been synced). Conservative threshold: over 150 combined
+ * load in a single day is treated as a deficit day.
  */
 function computeRecoveryStatus(totalLoad: number): RecoveryStatus {
-  if (totalLoad < 50) return 'adequate'
   if (totalLoad < 150) return 'adequate'
   return 'deficit'
 }
 
 /**
- * Get the rolling sum of cardio load over the last N days.
+ * Determine recovery status from CTL−ATL "form". Strongly negative form means
+ * fatigue (ATL) is running well ahead of fitness (CTL) — a deficit. Strongly
+ * positive form means the athlete is fresh, verging on detrained — a surplus
+ * of recovery capacity that can absorb a harder session.
  */
-export async function recentCardioLoad(days: number = 7): Promise<number> {
-  const now = Date.now()
-  const windowMs = days * 24 * 60 * 60 * 1000
-  const oldestTime = now - windowMs
-
-  const activities = await db.cardioActivities
-    .where('syncedAt')
-    .aboveOrEqual(oldestTime)
-    .toArray()
-
-  return activities.reduce((sum, activity) => sum + (activity.load ?? 0), 0)
+function recoveryFromForm(form: number): RecoveryStatus {
+  if (form < -10) return 'deficit'
+  if (form > 15) return 'surplus'
+  return 'adequate'
 }
 
 /**

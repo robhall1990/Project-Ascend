@@ -15,6 +15,7 @@ import type {
   Settings,
   TrainingLoad,
   UserStats,
+  WellnessRecord,
 } from '../types'
 import { PROGRAM_VERSION, SEED_EXERCISES, SEED_PHASES } from '../data/program'
 import { newId } from '../lib/id'
@@ -63,6 +64,8 @@ export class LiftTrackerDB extends Dexie {
   // AI Coaching (Phase 1+)
   trainingLoads!: Table<TrainingLoad, string>
   coachingSuggestions!: Table<CoachingSuggestion, string>
+  // Wellness / performance data (Phase 2)
+  wellnessRecords!: Table<WellnessRecord, string>
 
   constructor() {
     super('lift-tracker')
@@ -98,6 +101,10 @@ export class LiftTrackerDB extends Dexie {
     this.version(6).stores({
       trainingLoads: 'id, date, createdAt',
       coachingSuggestions: 'id, date',
+    })
+    // v7: wellness / performance data synced via intervals.icu (Phase 2).
+    this.version(7).stores({
+      wellnessRecords: 'date, syncedAt',
     })
   }
 }

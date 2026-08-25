@@ -8,6 +8,7 @@ import { round1, toDisplayWeight, toKg } from '../lib/units'
 import { programPosition } from '../lib/schedule'
 import { DEFAULT_MODEL } from '../lib/aiPhoto'
 import { syncIntervals } from '../lib/intervals'
+import { syncWellness } from '../lib/wellness'
 import { useToast } from '../lib/toast'
 import { ConfirmDialog } from './Modal'
 
@@ -27,6 +28,7 @@ export function SettingsScreen({ settings, onBack }: { settings: Settings; onBac
   const [pendingImport, setPendingImport] = useState<unknown>(null)
   const [testing, setTesting] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [syncingWellness, setSyncingWellness] = useState(false)
 
   if (!stats || !bw) return <div className="app">Loading…</div>
 
@@ -102,6 +104,34 @@ export function SettingsScreen({ settings, onBack }: { settings: Settings; onBac
       toast(err instanceof Error ? err.message : 'Sync failed', 'error')
     } finally {
       setSyncing(false)
+    }
+  }
+
+  async function runWellnessSync() {
+    if (!settings.intervalsApiKey || !settings.intervalsAthleteId) return
+    setSyncingWellness(true)
+    try {
+      const newest = new Date()
+      const oldest = new Date()
+      oldest.setDate(oldest.getDate() - 30)
+      const iso = (d: Date) => d.toISOString().slice(0, 10)
+      const r = await syncWellness(
+        settings.intervalsApiKey,
+        settings.intervalsAthleteId,
+        iso(oldest),
+        iso(newest),
+      )
+      await updateSettings({ intervalsLastWellnessSync: Date.now() })
+      toast(
+        r.imported === 0
+          ? 'No wellness data found in the last 30 days'
+          : `Synced ${r.imported} day${r.imported === 1 ? '' : 's'} of wellness data`,
+        'success',
+      )
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Sync failed', 'error')
+    } finally {
+      setSyncingWellness(false)
     }
   }
 
@@ -304,9 +334,25 @@ export function SettingsScreen({ settings, onBack }: { settings: Settings; onBac
           {settings.intervalsLastSync
             ? `Last synced ${new Date(settings.intervalsLastSync).toLocaleString()}`
             : 'Not synced yet.'}{' '}
-          Browser-to-intervals.icu calls depend on their CORS policy, which couldn’t be verified
-          from the build environment — if the sync is refused you’ll get a clear message rather
+          Browser-to-intervals.icu calls depend on their CORS policy, which couldn't be verified
+          from the build environment — if the sync is refused you'll get a clear message rather
           than a silent failure.
+        </p>
+        <button
+          className="btn ghost full"
+          disabled={!settings.intervalsApiKey || !settings.intervalsAthleteId || syncingWellness}
+          onClick={runWellnessSync}
+          style={{ marginTop: '0.5rem' }}
+        >
+          {syncingWellness ? 'Syncing…' : '⟳ Sync performance data (VO2 max, HRV, load)'}
+        </button>
+        <p className="settings-note">
+          {settings.intervalsLastWellnessSync
+            ? `Last synced ${new Date(settings.intervalsLastWellnessSync).toLocaleString()}`
+            : 'Not synced yet.'}{' '}
+          Pulls VO2 max, resting HR, HRV and fitness/fatigue (CTL/ATL) from intervals.icu's
+          wellness log — which is itself populated from whatever you've connected there (Garmin
+          Connect, in most setups). No separate Garmin login needed.
         </p>
       </Section>
 
