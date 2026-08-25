@@ -116,6 +116,18 @@ phase breakdown: see the project's plan file. Completed so far:
   intensity once over it, and to call out cardio interference on lower-body
   work rather than just cutting the lift.
 
+- **Auto-sync** ✅
+  intervals.icu (cardio + wellness) no longer needs a manual button press:
+  `src/lib/autoSync.ts` fires both feeds on app launch and whenever the app
+  returns to the foreground (`visibilitychange`), throttled to once an hour
+  per feed. Throttling is keyed off the last *attempt*, not just the last
+  success — a persistently failing sync (offline, bad key, intervals.icu
+  down) would otherwise retry on every single foreground event forever.
+  Failures here are silent (console-only): this can fire while the user is
+  looking at something unrelated, so it never interrupts with a toast. The
+  manual "Sync now" buttons in Settings still exist for an on-demand refresh
+  with errors shown directly.
+
 Not yet built: streaks/goal tracking, weekly coach commentary, and a
 dedicated analytics screen.
 

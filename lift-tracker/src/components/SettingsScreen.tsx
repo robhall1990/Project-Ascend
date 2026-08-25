@@ -361,6 +361,12 @@ export function SettingsScreen({ settings, onBack }: { settings: Settings; onBac
             onBlur={(e) => patch({ intervalsAthleteId: e.target.value.trim() || undefined }, 'Saved')}
           />
         </Row>
+        <p className="settings-note">
+          Once a key and Athlete ID are set, both feeds below sync automatically — on launch and
+          whenever you bring the app back to the foreground, at most once an hour per feed. The
+          buttons are for an on-demand full refresh with errors shown directly, not something you
+          need to remember to press.
+        </p>
         <button
           className="btn ghost full"
           disabled={!settings.intervalsApiKey || !settings.intervalsAthleteId || syncing}

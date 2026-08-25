@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
 import type { MealSlot } from './types'
+import { autoSyncIntervals } from './lib/autoSync'
 import { SessionLogView } from './components/SessionLogView'
 import { HistoryView } from './components/HistoryView'
 import { TodayScreen } from './components/TodayScreen'
@@ -25,6 +26,19 @@ export function App() {
   const [logReturnTo, setLogReturnTo] = useState<Tab>('today')
   const [fuelInitialSlot, setFuelInitialSlot] = useState<MealSlot | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+
+  // Auto-sync intervals.icu (cardio + wellness) on launch and whenever the
+  // app comes back to the foreground — throttled internally so this doesn't
+  // hammer the API on every glance at the phone. Manual "Sync now" in
+  // Settings is still there for an on-demand refresh with visible errors.
+  useEffect(() => {
+    autoSyncIntervals()
+    function onVisible() {
+      if (document.visibilityState === 'visible') autoSyncIntervals()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
 
   if (!settings || !exercises || !phases || sessions === undefined) {
     return <div className="app">Loading…</div>
