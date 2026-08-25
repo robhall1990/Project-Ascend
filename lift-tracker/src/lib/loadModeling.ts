@@ -58,7 +58,7 @@ export async function computeDailyLoad(date: string): Promise<TrainingLoad | und
     return undefined
   }
 
-  return {
+  const load: TrainingLoad = {
     id: `load:${date}`,
     date,
     strengthRpe,
@@ -69,6 +69,13 @@ export async function computeDailyLoad(date: string): Promise<TrainingLoad | und
     recoveryStatus,
     createdAt: Date.now(),
   }
+  // Cache the computed value so later phases (recovery-tolerance rolling
+  // averages, weekly commentary) can query stored history directly instead of
+  // re-deriving it from raw sessions/setLogs/cardioActivities every time. The
+  // live chart still recomputes on read, so an edited set is reflected as soon
+  // as this is called again for that date.
+  await db.trainingLoads.put(load)
+  return load
 }
 
 /**
