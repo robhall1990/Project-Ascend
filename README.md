@@ -1,71 +1,18 @@
-# ⛰️ Project Ascend
+# Project Ascend
 
-A local-first **Progressive Web App** for tracking the daily indicators of a high performer across four pillars — **Health, Career, Leadership, Family** — with AI coaching built in.
+The active app here is **Lift Tracker** — a personal strength training and
+nutrition coaching PWA, deployed to GitHub Pages via a GitHub Actions
+workflow (`.github/workflows/deploy-lift-tracker.yml`), not a classic
+branch-based Pages deploy.
 
-Everything lives on your phone. No accounts, no server, no tracking.
+See [`lift-tracker/README.md`](lift-tracker/README.md) for what it does, and
+[`lift-tracker/DEPLOY.md`](lift-tracker/DEPLOY.md) for deployment setup.
 
-## Features
+**Repo → Settings → Pages → Source must stay set to "GitHub Actions."**
+Switching it to "Deploy from a branch" re-enables GitHub's legacy Jekyll
+build, which will silently overwrite the deployed app — this is what
+clobbered the previous deployment.
 
-- **Dashboard** — today's High Performance Score with per-component breakdown, current streak, last-7-days trend, weekly average, and at-a-glance tiles (weight, body fat %, sleep, training, calories, protein, alcohol, mood).
-- **Daily check-in** across six sections:
-  - **Physical** — weight, body fat, sleep, energy, mood, alcohol (tap pints of beer / glasses of wine / double spirits — UK units are calculated for you), water, steps, supplements tick-boxes
-  - **Nutrition** — meals split into Breakfast / Lunch / Dinner / Snacks. The day's **Calories and Protein totals auto-populate** from your meals: one-tap Huel & Salad quick-ticks use built-in stock values (no API call), while 📷 photos and typed meals are estimated by Claude. Manual override with reset-to-auto. Also: fruit & veg portions, sugar cravings, hunger
-  - **Training** — sessions (run / bike / swim / gym / recovery, defaulting to Run) with time, distance, calories, avg heart rate, RPE and notes; **intervals.icu sync** (one tap pulls the day's activities) and **Garmin file import** (TCX / GPX)
-  - **Family** — present today, quality-time minutes, phone-free evening, played with children, date night, journal
-  - **Career** — hours worked, biggest win, deep-work minutes, leadership action, AI learning, strategic-vs-operational %
-  - **Mind** — gratitude, biggest stress, meditation, reading, screen time, overall mood
-- **High Performance Score (/100)** — computed automatically from the check-in with **configurable weights** (default: Sleep 15, Training 20, Nutrition 20, Alcohol 10, Family 15, Career 15, Reflection 5) and configurable targets (sleep hours, protein, deep work, etc.). Any weight total works — the score normalises to /100.
-- **Weekly review** — every Sunday (or whenever): wins, lessons, biggest mistake, biggest success, next week's goals, week score /10.
-- **Analytics** — trend charts for HPS, weight, body fat, sleep, mood, alcohol and weekly training volume, plus a GitHub-style consistency calendar. Tap any chart for exact values.
-- **Quick-tap activity log** — one-tap extras (1:1 held, gave feedback, family dinner, doomscrolling…) with quality rating, duration and notes. Fully customizable list.
-- **Weekly goals & metrics** — set targets like "4 workouts", "15 h deep work", "2 date nights" (or caps like "max 3 takeaways"), log progress, see this week's bar and the last 4 weeks' trend.
-- **AI coaching, two ways:**
-  1. **JSON export** — one tap copies/shares the day (activities, scores, goal progress, 7-day trend + a ready-made coaching prompt) to paste into Claude, ChatGPT or any LLM. Free.
-  2. **Built-in coach** — add your own Anthropic API key in Settings and get coached (plus follow-up chat) right inside the app. The key is stored only on your device and calls the Claude API directly.
-- **Offline-first PWA** — installs to your Android home screen, works with no connection.
-- **Backup & restore** — full data export/import as JSON.
-
-## Install on your Android phone
-
-1. **Enable GitHub Pages** for this repo: *Settings → Pages → Source: Deploy from a branch → select the branch and `/ (root)` → Save.*
-2. Open the published URL (`https://<user>.github.io/Project-Ascend/`) in **Chrome on your phone**.
-3. Tap the ⋮ menu → **Add to Home screen** (or the "Install app" prompt).
-4. Launch it from your home screen like any app.
-
-> The app must be served over HTTPS for install/offline support — GitHub Pages does this for free. Any other static host (Netlify, Cloudflare Pages) works too.
-
-## Meal calorie estimation
-
-Every meal you submit contributes to the day's Calories and Protein totals, which auto-sum from the per-meal estimates:
-
-- **Quick-ticks (offline, no API key)** — ticking Huel or Salad uses built-in stock values (Huel 400 kcal / 40 g protein; Salad 500 kcal / 25 g protein). No network call.
-- **📷 Photo** — tap the camera on a meal, snap or pick a plate, and Claude returns the dish name, calories and macros. Overrides the stock value for that meal.
-- **✍️ Typed text** — type what you ate (e.g. "Chicken & rice bowl") and Claude estimates it on the spot.
-
-Priority per meal is typed text > photo > quick-tick stock. The day's Calories/Protein fields show "✨ Auto-summed from your meals"; type into either field to override manually, with a "use auto from meals" link to reset. Photo and typed-text estimation use your Claude API key (set in Settings); the Huel/Salad quick-ticks work with no key at all. Nothing is sent unless you submit a meal, and nothing is stored server-side.
-
-## Training data: intervals.icu & Garmin
-
-**intervals.icu sync** — the preferred path. intervals.icu already aggregates your activities from Garmin, Strava, etc., and offers a simple API-key. Add your API key (intervals.icu → Settings → Developer) and Athlete ID in the app's Settings, then tap **⟳ Sync intervals.icu** in the Training check-in to pull that day's activities (type, time, distance, calories, heart rate), de-duplicated so re-syncing is safe.
-
-> ⚠️ **CORS caveat:** the app calls intervals.icu directly from your browser. Whether that succeeds depends on intervals.icu sending permissive CORS headers, which couldn't be verified from the build sandbox (outbound access to intervals.icu was blocked there). If the browser call is refused, the app tells you and you can fall back to file import below. If it turns out CORS is blocked for good, the fix is a tiny proxy — happy to add one.
-
-**Garmin file import** — the always-works fallback. Garmin itself has no browser-usable public API (their Health/Activity API is a server-side partner program), so there's no live Garmin auto-sync from a serverless PWA. Instead: in Garmin Connect open an activity → ⚙ → **Export to TCX** (or GPX) and import that file — the same fields fill in automatically.
-
-## Privacy
-
-- All data is stored in your browser's `localStorage` on-device.
-- The only network call the app ever makes is to `api.anthropic.com`, and only if you add an API key and tap "Coach me".
-- Clearing the browser's site data erases everything — use **Settings → Backup file** regularly.
-
-## Development
-
-No build step. It's a single `index.html` plus `sw.js`, `manifest.webmanifest` and icons.
-
-```bash
-# run locally
-python3 -m http.server 8080
-# then open http://localhost:8080
-```
-
-Icons are generated by `tools/make_icons.py` (pure Python, no dependencies).
+The original "Project Ascend" high-performer tracker that used to live at
+the repo root has been retired; its code remains in git history and on the
+`claude/high-performer-tracking-app-0p0mk7` branch.
