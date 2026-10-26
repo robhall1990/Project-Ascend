@@ -4,12 +4,16 @@ A single-user, on-device PWA for a 20-week training block with nutrition
 tracking. React + Vite + TypeScript, Dexie/IndexedDB, Recharts.
 Built phase by phase — see the build brief.
 
-**Current program: v2 — General Physical Preparedness** (see
-`training-program-v2-preparedness.md`). A 4-day split plus a weekly ruck,
-emphasising loaded carries, odd-object work, strength-to-weight and grip.
-Overhead press is the main press; squat, trap-bar deadlift and weighted
-pull-up complete the four tracked lifts. Carries are prescribed in **metres**
-and dead hangs in **seconds**, so sets aren't universally reps.
+**Current program: v3 — Physique + functional-dad strength.** Same 4-day
+split plus weekly ruck as v2, but accessory work shifted hard into
+hypertrophy territory (10-20 reps, more isolation, more direct sets on
+shoulders/chest/arms/back-width/abs) while the four main lifts — overhead
+press, back squat, trap-bar deadlift, weighted pull-up — stay heavy.
+Carries/odd-object work survive at reduced volume: real grip and carrying
+capacity, just no longer the dominant stimulus on every day. Day themes:
+Push (chest/shoulders/arms), Legs & Core, Pull (back/arms), Conditioning &
+arms finisher. Carries are prescribed in **metres** and dead hangs in
+**seconds**, so sets aren't universally reps.
 
 Changing the seeded program means bumping `PROGRAM_VERSION` in
 `src/data/program.ts`; installs still on an older program are migrated on next
