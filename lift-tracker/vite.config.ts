@@ -15,8 +15,8 @@ export default defineConfig({
         name: 'Lift Tracker',
         short_name: 'Lift',
         description: 'Personal upper-body lifting & nutrition tracker',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
+        theme_color: '#090d16',
+        background_color: '#090d16',
         display: 'standalone',
         orientation: 'portrait',
         icons: [
