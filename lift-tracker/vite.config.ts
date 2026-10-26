@@ -12,9 +12,13 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
+        // Explicit id: without one Chrome keys the app on start_url, which this
+        // shares with the retired "Project Ascend" PWA at the same URL — phones
+        // that had that installed refuse to install this as "already installed".
+        id: 'lift-tracker',
         name: 'Lift Tracker',
         short_name: 'Lift',
-        description: 'Personal upper-body lifting & nutrition tracker',
+        description: 'Personal strength, conditioning & nutrition coach',
         theme_color: '#090d16',
         background_color: '#090d16',
         display: 'standalone',
